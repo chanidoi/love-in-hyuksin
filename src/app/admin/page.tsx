@@ -93,7 +93,7 @@ export default function AdminPage() {
     if (error) {
       console.error('Error loading profiles:', error)
     } else {
-      setProfiles(data || [])
+      setProfiles((data || []) as Profile[])
     }
   }
 
@@ -158,9 +158,9 @@ export default function AdminPage() {
       .order('nickname', { ascending: true })
 
     if (allProfiles) {
-      const typedProfiles: Profile[] = allProfiles as Profile[]
-      setMaleUsers(typedProfiles.filter((p: Profile) => p.gender === 'male'))
-      setFemaleUsers(typedProfiles.filter((p: Profile) => p.gender === 'female'))
+      const typedProfiles: Profile[] = (allProfiles || []) as Profile[]
+      setMaleUsers(typedProfiles.filter((p: Profile) => p.gender === 'male') as Profile[])
+      setFemaleUsers(typedProfiles.filter((p: Profile) => p.gender === 'female') as Profile[])
     }
   }
 
