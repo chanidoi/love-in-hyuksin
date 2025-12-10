@@ -9,8 +9,11 @@ interface Profile {
   email: string
   nickname: string
   gender: string
-  innovation_city: string
+  birth_year: number
   organization: string
+  innovation_city: string
+  job_level: string
+  job_field: string
   created_at: string
 }
 
@@ -155,8 +158,9 @@ export default function AdminPage() {
       .order('nickname', { ascending: true })
 
     if (allProfiles) {
-      setMaleUsers(allProfiles.filter(p => p.gender === 'male'))
-      setFemaleUsers(allProfiles.filter(p => p.gender === 'female'))
+      const typedProfiles: Profile[] = allProfiles as Profile[]
+      setMaleUsers(typedProfiles.filter((p: Profile) => p.gender === 'male'))
+      setFemaleUsers(typedProfiles.filter((p: Profile) => p.gender === 'female'))
     }
   }
 
