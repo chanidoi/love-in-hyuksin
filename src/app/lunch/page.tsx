@@ -364,6 +364,22 @@ export default function LunchPage() {
       <div className="max-w-4xl mx-auto px-4">
         <h1 className="text-3xl font-bold text-pink-500 mb-6">점심 매칭</h1>
 
+        {/* 내일 점심 등록하기 카드 */}
+        <div className="bg-pink-50 border-2 border-pink-200 rounded-xl p-6 mb-6 shadow-md">
+          <h2 className="text-xl font-bold text-pink-600 mb-2">
+            🍽️ 내일 점심 가능하신가요?
+          </h2>
+          <p className="text-gray-700 mb-4">
+            등록하면 다른 회원과 매칭될 수 있어요
+          </p>
+          <Link
+            href="/lunch/available"
+            className="inline-block bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            내일 점심 등록하기
+          </Link>
+        </div>
+
         {/* 탭 */}
         <div className="flex gap-2 mb-6 bg-white rounded-lg p-1 shadow-md">
           <button
