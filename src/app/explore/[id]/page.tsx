@@ -26,6 +26,15 @@ interface Review {
   created_at: string
 }
 
+interface Restaurant {
+  id: string
+  name: string
+  category: string
+  location: string
+  innovation_city: string
+  is_outside: boolean
+}
+
 export default function ProfileDetailPage() {
   const router = useRouter()
   const params = useParams()
@@ -38,6 +47,8 @@ export default function ProfileDetailPage() {
   const [message, setMessage] = useState('')
   const [hasPendingRequest, setHasPendingRequest] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState('')
 
   useEffect(() => {
     checkUser()
@@ -48,6 +59,7 @@ export default function ProfileDetailPage() {
       loadProfile(params.id as string)
       checkPendingRequest(params.id as string)
       loadReviews(params.id as string)
+      loadRestaurants()
     }
   }, [user, params.id])
 
@@ -110,6 +122,19 @@ export default function ProfileDetailPage() {
     }
   }
 
+  const loadRestaurants = async () => {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('id, name, category, location, innovation_city, is_outside')
+      .order('name', { ascending: true })
+
+    if (error) {
+      console.error('Error loading restaurants:', error)
+    } else {
+      setRestaurants((data || []) as Restaurant[])
+    }
+  }
+
   const getTomorrowDate = (): string => {
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
@@ -137,17 +162,24 @@ export default function ProfileDetailPage() {
     setMessage('')
     // 내일 날짜를 기본값으로 설정
     setProposedDate(getTomorrowDate())
+    setSelectedRestaurantId('')
   }
 
   const handleCloseModal = () => {
     setShowModal(false)
     setProposedDate('')
+    setSelectedRestaurantId('')
     setMessage('')
   }
 
   const handleSubmitProposal = async () => {
     if (!user || !params.id || !proposedDate) {
       setMessage('날짜를 선택해주세요.')
+      return
+    }
+
+    if (!selectedRestaurantId) {
+      setMessage('식당을 선택해주세요.')
       return
     }
 
@@ -160,6 +192,7 @@ export default function ProfileDetailPage() {
         requester_id: user.id,
         receiver_id: params.id as string,
         proposed_date: proposedDate,
+        restaurant_id: selectedRestaurantId,
         status: 'pending',
       })
 
@@ -173,6 +206,7 @@ export default function ProfileDetailPage() {
       setTimeout(() => {
         setShowModal(false)
         setMessage('')
+        setSelectedRestaurantId('')
       }, 2000)
     }
   }
@@ -343,6 +377,30 @@ export default function ProfileDetailPage() {
               />
             </div>
 
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                식당 선택
+              </label>
+              {restaurants.length === 0 ? (
+                <div className="w-full p-3 border rounded-lg bg-gray-50 text-gray-500 text-center">
+                  등록된 식당이 없습니다
+                </div>
+              ) : (
+                <select
+                  value={selectedRestaurantId}
+                  onChange={(e) => setSelectedRestaurantId(e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700"
+                >
+                  <option value="">식당을 선택하세요</option>
+                  {restaurants.map((restaurant) => (
+                    <option key={restaurant.id} value={restaurant.id}>
+                      {restaurant.name} ({restaurant.category})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
             {message && (
               <p className={`mb-4 text-center ${
                 message.includes('오류') ? 'text-red-500' : 'text-green-500'
@@ -360,7 +418,7 @@ export default function ProfileDetailPage() {
               </button>
               <button
                 onClick={handleSubmitProposal}
-                disabled={submitting || !proposedDate}
+                disabled={submitting || !proposedDate || !selectedRestaurantId}
                 className="flex-1 bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 disabled:bg-gray-400 font-medium"
               >
                 {submitting ? '제안 중...' : '제안하기'}
