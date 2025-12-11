@@ -12,6 +12,7 @@ interface Profile {
   birth_year: string
   organization: string
   innovation_city: string
+  avatar_url: string | null
 }
 
 export default function Home() {
@@ -132,7 +133,7 @@ export default function Home() {
     
     const { data } = await supabase
       .from('profiles')
-      .select('id, nickname, gender, birth_year, organization, innovation_city')
+      .select('id, nickname, gender, birth_year, organization, innovation_city, avatar_url')
       .eq('gender', oppositeGender)
       .neq('id', user.id)
       .not('nickname', 'is', null)
@@ -265,66 +266,97 @@ export default function Home() {
         )}
 
         {/* 오늘의 추천 */}
-        {recommendedProfiles.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-3 px-1">오늘의 추천</h3>
+        <div className="mb-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-3 px-1">오늘의 추천</h3>
+          {recommendedProfiles.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-card p-8 text-center">
+              <p className="text-gray-500">아직 추천 프로필이 없습니다</p>
+            </div>
+          ) : (
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {recommendedProfiles.map((recProfile) => (
                 <Link
                   key={recProfile.id}
                   href={`/explore/${recProfile.id}`}
-                  className="flex-shrink-0 bg-white rounded-2xl shadow-card p-4 w-32 hover:shadow-lg transition-shadow"
+                  className="w-[140px] flex-shrink-0 bg-white rounded-2xl shadow-card overflow-hidden hover:shadow-lg transition-shadow"
                 >
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#F472B6] to-[#ec4899] mx-auto mb-3 flex items-center justify-center text-white text-2xl font-bold">
-                    {recProfile.nickname?.charAt(0) || 'U'}
+                  {/* 프로필 이미지 */}
+                  <div className="relative h-[180px] rounded-2xl overflow-hidden">
+                    {recProfile.avatar_url ? (
+                      <img
+                        src={recProfile.avatar_url}
+                        alt={recProfile.nickname}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOWNhM2FmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+RiDwvdGV4dD48L3N2Zz4='
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-pink-400 to-purple-400 flex items-center justify-center">
+                        <span className="text-4xl text-white font-bold">
+                          {recProfile.nickname?.charAt(0) || 'U'}
+                        </span>
+                      </div>
+                    )}
+                    {/* 그라데이션 오버레이 */}
+                    <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/50 to-transparent"></div>
+                    {/* 하단 텍스트 */}
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <p className="text-white font-semibold text-sm mb-1 truncate">
+                        {recProfile.nickname}
+                      </p>
+                      <div className="flex items-center gap-2 text-white text-xs">
+                        {recProfile.birth_year && (
+                          <span>{calculateAge(recProfile.birth_year)}세</span>
+                        )}
+                        {recProfile.organization && (
+                          <span className="truncate">{recProfile.organization}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-center font-semibold text-gray-900 text-sm mb-1">
-                    {recProfile.nickname}
-                  </p>
-                  {recProfile.birth_year && (
-                    <p className="text-center text-xs text-gray-500 mb-1">
-                      {calculateAge(recProfile.birth_year)}세
-                    </p>
-                  )}
-                  {recProfile.organization && (
-                    <p className="text-center text-xs text-gray-400 truncate">
-                      {recProfile.organization}
-                    </p>
-                  )}
                 </Link>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* 바로가기 */}
         <div className="grid grid-cols-2 gap-4">
           <Link
             href="/explore"
-            className="bg-white rounded-2xl shadow-card p-6 text-center hover:shadow-lg transition-shadow"
+            className="bg-pink-50 rounded-2xl shadow-card p-4 hover:shadow-lg transition-shadow flex items-center gap-3"
           >
-            <div className="text-4xl mb-3">🔍</div>
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl">🔍</span>
+            </div>
             <p className="font-semibold text-gray-900">회원 탐색</p>
           </Link>
           <Link
             href="/lunch"
-            className="bg-white rounded-2xl shadow-card p-6 text-center hover:shadow-lg transition-shadow"
+            className="bg-orange-50 rounded-2xl shadow-card p-4 hover:shadow-lg transition-shadow flex items-center gap-3"
           >
-            <div className="text-4xl mb-3">🍽️</div>
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl">🍽️</span>
+            </div>
             <p className="font-semibold text-gray-900">점심 현황</p>
           </Link>
           <Link
             href="/chat"
-            className="bg-white rounded-2xl shadow-card p-6 text-center hover:shadow-lg transition-shadow"
+            className="bg-purple-50 rounded-2xl shadow-card p-4 hover:shadow-lg transition-shadow flex items-center gap-3"
           >
-            <div className="text-4xl mb-3">💬</div>
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl">💬</span>
+            </div>
             <p className="font-semibold text-gray-900">채팅</p>
           </Link>
           <Link
             href="/profile"
-            className="bg-white rounded-2xl shadow-card p-6 text-center hover:shadow-lg transition-shadow"
+            className="bg-blue-50 rounded-2xl shadow-card p-4 hover:shadow-lg transition-shadow flex items-center gap-3"
           >
-            <div className="text-4xl mb-3">👤</div>
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl">👤</span>
+            </div>
             <p className="font-semibold text-gray-900">프로필</p>
           </Link>
         </div>
