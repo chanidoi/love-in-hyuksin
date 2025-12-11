@@ -12,6 +12,7 @@ export default function Home() {
   const [profile, setProfile] = useState<any>(null)
   const [todayLunch, setTodayLunch] = useState<any>(null)
   const [newProposals, setNewProposals] = useState(0)
+  const [unreadMessages, setUnreadMessages] = useState(0)
 
   useEffect(() => {
     checkUser()
@@ -22,6 +23,7 @@ export default function Home() {
       loadProfile()
       loadTodayLunch()
       loadNewProposals()
+      loadUnreadMessages()
     }
   }, [user])
 
@@ -81,6 +83,35 @@ export default function Home() {
 
     if (data) {
       setNewProposals(data.length)
+    }
+  }
+
+  const loadUnreadMessages = async () => {
+    if (!user) return
+
+    // 현재 사용자가 참여한 채팅방 목록 조회
+    const { data: chatRooms, error: chatRoomsError } = await supabase
+      .from('chat_rooms')
+      .select('id')
+      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+
+    if (chatRoomsError || !chatRooms || chatRooms.length === 0) {
+      setUnreadMessages(0)
+      return
+    }
+
+    const chatRoomIds = chatRooms.map(room => room.id)
+
+    // 읽지 않은 메시지 개수 조회
+    const { data: messages, error: messagesError } = await supabase
+      .from('messages')
+      .select('id')
+      .in('chat_room_id', chatRoomIds)
+      .eq('is_read', false)
+      .neq('sender_id', user.id)
+
+    if (!messagesError && messages) {
+      setUnreadMessages(messages.length)
     }
   }
 
@@ -178,6 +209,40 @@ export default function Home() {
           <p className="text-gray-600">오늘도 좋은 만남이 있기를 바랍니다</p>
         </div>
 
+        {/* 새 점심 제안 알림 배너 */}
+        {newProposals > 0 && (
+          <div className="bg-pink-100 border border-pink-300 rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <p className="text-gray-800 font-medium">
+                🍽️ 새로운 점심 제안이 {newProposals}건 있습니다!
+              </p>
+              <Link
+                href="/lunch"
+                className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 font-medium transition-colors"
+              >
+                확인하기
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* 읽지 않은 메시지 알림 배너 */}
+        {unreadMessages > 0 && (
+          <div className="bg-blue-100 border border-blue-300 rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <p className="text-gray-800 font-medium">
+                💬 읽지 않은 메시지가 {unreadMessages}건 있습니다!
+              </p>
+              <Link
+                href="/chat"
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 font-medium transition-colors"
+              >
+                확인하기
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* 오늘의 점심 약속 */}
         {todayLunch && (
           <div className="bg-gradient-to-r from-pink-100 to-pink-50 border-2 border-pink-300 rounded-xl shadow-md p-6 mb-6">
@@ -191,22 +256,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* 새로운 제안 알림 */}
-        {newProposals > 0 && (
-          <Link
-            href="/lunch"
-            className="block bg-yellow-50 border-2 border-yellow-300 rounded-xl shadow-md p-6 mb-6 hover:bg-yellow-100 transition-colors"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl">🔔</span>
-              <h3 className="text-xl font-bold text-yellow-700">새로운 점심 제안</h3>
-            </div>
-            <p className="text-gray-700">
-              <span className="font-semibold text-yellow-700">{newProposals}개</span>의 새로운 점심 제안이 있습니다.
-            </p>
-            <p className="text-sm text-gray-600 mt-2">클릭하여 확인하기 →</p>
-          </Link>
-        )}
 
         {/* 빠른 메뉴 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
