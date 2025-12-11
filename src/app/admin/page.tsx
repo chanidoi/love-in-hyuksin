@@ -30,12 +30,22 @@ interface LunchRequest {
   receiver_nickname?: string
 }
 
+interface Restaurant {
+  id: string
+  name: string
+  category: string
+  location: string
+  innovation_city: string
+  is_outside: boolean
+  created_at: string
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'users' | 'matches' | 'manual'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'matches' | 'manual' | 'restaurants'>('users')
   
   // 회원 관리
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -53,6 +63,15 @@ export default function AdminPage() {
   const [matchDate, setMatchDate] = useState('')
   const [creating, setCreating] = useState(false)
   const [message, setMessage] = useState('')
+  
+  // 식당 관리
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+  const [restaurantName, setRestaurantName] = useState('')
+  const [restaurantCategory, setRestaurantCategory] = useState('')
+  const [restaurantLocation, setRestaurantLocation] = useState('')
+  const [restaurantCity, setRestaurantCity] = useState('')
+  const [restaurantIsOutside, setRestaurantIsOutside] = useState(false)
+  const [addingRestaurant, setAddingRestaurant] = useState(false)
 
   useEffect(() => {
     checkUser()
@@ -66,6 +85,8 @@ export default function AdminPage() {
         loadLunchRequests()
       } else if (activeTab === 'manual') {
         loadUsersForMatching()
+      } else if (activeTab === 'restaurants') {
+        loadRestaurants()
       }
     }
   }, [user, activeTab])
@@ -212,6 +233,71 @@ export default function AdminPage() {
     }
   }
 
+  const loadRestaurants = async () => {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('id, name, category, location, innovation_city, is_outside, created_at')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error loading restaurants:', error)
+    } else {
+      setRestaurants((data || []) as Restaurant[])
+    }
+  }
+
+  const handleAddRestaurant = async () => {
+    if (!restaurantName || !restaurantCategory || !restaurantLocation || !restaurantCity) {
+      setMessage('모든 필수 항목을 입력해주세요.')
+      return
+    }
+
+    setAddingRestaurant(true)
+    setMessage('')
+
+    const { error } = await supabase
+      .from('restaurants')
+      .insert({
+        name: restaurantName,
+        category: restaurantCategory,
+        location: restaurantLocation,
+        innovation_city: restaurantCity,
+        is_outside: restaurantIsOutside,
+      })
+
+    if (error) {
+      setMessage('오류: ' + error.message)
+      setAddingRestaurant(false)
+    } else {
+      setMessage('식당이 추가되었습니다!')
+      setRestaurantName('')
+      setRestaurantCategory('')
+      setRestaurantLocation('')
+      setRestaurantCity('')
+      setRestaurantIsOutside(false)
+      setAddingRestaurant(false)
+      loadRestaurants()
+    }
+  }
+
+  const handleDeleteRestaurant = async (restaurantId: string) => {
+    if (!confirm('정말 이 식당을 삭제하시겠습니까?')) {
+      return
+    }
+
+    const { error } = await supabase
+      .from('restaurants')
+      .delete()
+      .eq('id', restaurantId)
+
+    if (error) {
+      setMessage('오류: ' + error.message)
+    } else {
+      setMessage('식당이 삭제되었습니다!')
+      loadRestaurants()
+    }
+  }
+
   const filteredProfiles = profiles.filter(profile => {
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
@@ -322,6 +408,16 @@ export default function AdminPage() {
             }`}
           >
             수동 매칭
+          </button>
+          <button
+            onClick={() => setActiveTab('restaurants')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+              activeTab === 'restaurants'
+                ? 'bg-pink-500 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            식당 관리
           </button>
         </div>
 
@@ -491,6 +587,161 @@ export default function AdminPage() {
               >
                 {creating ? '생성 중...' : '매칭 생성'}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* 식당 관리 탭 */}
+        {activeTab === 'restaurants' && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold text-pink-500 mb-6">식당 관리</h2>
+
+            {/* 식당 추가 폼 */}
+            <div className="bg-gray-50 rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">식당 추가</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    식당 이름 *
+                  </label>
+                  <input
+                    type="text"
+                    value={restaurantName}
+                    onChange={(e) => setRestaurantName(e.target.value)}
+                    placeholder="식당 이름 입력"
+                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700 placeholder-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    카테고리 *
+                  </label>
+                  <select
+                    value={restaurantCategory}
+                    onChange={(e) => setRestaurantCategory(e.target.value)}
+                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700"
+                  >
+                    <option value="">선택하세요</option>
+                    <option value="한식">한식</option>
+                    <option value="중식">중식</option>
+                    <option value="양식">양식</option>
+                    <option value="일식">일식</option>
+                    <option value="기타">기타</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    위치 *
+                  </label>
+                  <input
+                    type="text"
+                    value={restaurantLocation}
+                    onChange={(e) => setRestaurantLocation(e.target.value)}
+                    placeholder="식당 위치 입력"
+                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700 placeholder-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    혁신도시 *
+                  </label>
+                  <select
+                    value={restaurantCity}
+                    onChange={(e) => setRestaurantCity(e.target.value)}
+                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700"
+                  >
+                    <option value="">선택하세요</option>
+                    <option value="부산">부산</option>
+                    <option value="대구">대구</option>
+                    <option value="광주">광주</option>
+                    <option value="울산">울산</option>
+                    <option value="강원">강원</option>
+                    <option value="충북">충북</option>
+                    <option value="전북">전북</option>
+                    <option value="경북">경북</option>
+                    <option value="경남(진주)">경남(진주)</option>
+                    <option value="제주">제주</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={restaurantIsOutside}
+                      onChange={(e) => setRestaurantIsOutside(e.target.checked)}
+                      className="w-4 h-4 text-pink-500 border-gray-300 rounded focus:ring-pink-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      혁신도시 외곽
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {message && (
+                <div className={`mt-4 p-3 rounded-lg text-center ${
+                  message.includes('오류') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                }`}>
+                  {message}
+                </div>
+              )}
+
+              <button
+                onClick={handleAddRestaurant}
+                disabled={addingRestaurant}
+                className="mt-4 w-full bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 disabled:bg-gray-400 font-medium"
+              >
+                {addingRestaurant ? '추가 중...' : '식당 추가'}
+              </button>
+            </div>
+
+            {/* 식당 목록 */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left p-3 text-pink-600">이름</th>
+                    <th className="text-left p-3 text-pink-600">카테고리</th>
+                    <th className="text-left p-3 text-pink-600">위치</th>
+                    <th className="text-left p-3 text-pink-600">혁신도시</th>
+                    <th className="text-left p-3 text-pink-600">외곽 여부</th>
+                    <th className="text-left p-3 text-pink-600">작업</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {restaurants.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center p-8 text-gray-500">
+                        등록된 식당이 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    restaurants.map((restaurant) => (
+                      <tr key={restaurant.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-3 text-gray-700">{restaurant.name}</td>
+                        <td className="p-3 text-gray-700">{restaurant.category}</td>
+                        <td className="p-3 text-gray-700">{restaurant.location}</td>
+                        <td className="p-3 text-gray-700">{restaurant.innovation_city}</td>
+                        <td className="p-3 text-gray-700">
+                          {restaurant.is_outside ? '외곽' : '내곽'}
+                        </td>
+                        <td className="p-3">
+                          <button
+                            onClick={() => handleDeleteRestaurant(restaurant.id)}
+                            className="text-red-500 hover:text-red-700 font-medium"
+                          >
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
