@@ -50,12 +50,24 @@ interface Menu {
   created_at: string
 }
 
+interface Payment {
+  id: string
+  lunch_request_id: string
+  user_id: string
+  amount: number
+  payment_method: string
+  status: string
+  created_at: string
+  confirmed_at: string | null
+  user_nickname?: string
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'users' | 'matches' | 'manual' | 'restaurants' | 'menus'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'matches' | 'manual' | 'restaurants' | 'menus' | 'payments'>('users')
   
   // 회원 관리
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -91,6 +103,9 @@ export default function AdminPage() {
   const [menuPrice, setMenuPrice] = useState('')
   const [menuDescription, setMenuDescription] = useState('')
   const [addingMenu, setAddingMenu] = useState(false)
+  
+  // 결제 관리
+  const [payments, setPayments] = useState<Payment[]>([])
 
   useEffect(() => {
     checkUser()
@@ -108,6 +123,8 @@ export default function AdminPage() {
         loadRestaurants()
       } else if (activeTab === 'menus') {
         loadAllRestaurants()
+      } else if (activeTab === 'payments') {
+        loadPayments()
       }
     }
   }, [user, activeTab])
@@ -428,6 +445,68 @@ export default function AdminPage() {
     }
   }
 
+  const loadPayments = async () => {
+    // 1단계: lunch_payments 조회
+    const { data: paymentsData, error: paymentsError } = await supabase
+      .from('lunch_payments')
+      .select('id, lunch_request_id, user_id, amount, payment_method, status, created_at, confirmed_at')
+      .order('created_at', { ascending: false })
+
+    if (paymentsError) {
+      console.error('Error loading payments:', paymentsError)
+      setMessage('오류: ' + paymentsError.message)
+      return
+    }
+
+    if (!paymentsData || paymentsData.length === 0) {
+      setPayments([])
+      return
+    }
+
+    // 2단계: user_id들로 profiles에서 닉네임 조회
+    const userIds = paymentsData.map(payment => payment.user_id)
+    const { data: userProfiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, nickname')
+      .in('id', userIds)
+
+    if (profilesError) {
+      console.error('Error loading user profiles:', profilesError)
+    }
+
+    // 3단계: 데이터 합치기
+    const mergedPayments = paymentsData.map(payment => {
+      const userProfile = userProfiles?.find(p => p.id === payment.user_id)
+      return {
+        ...payment,
+        user_nickname: userProfile?.nickname || '알 수 없음'
+      }
+    })
+
+    setPayments(mergedPayments as Payment[])
+  }
+
+  const handleConfirmPayment = async (paymentId: string) => {
+    if (!confirm('입금을 확인하시겠습니까?')) {
+      return
+    }
+
+    const { error } = await supabase
+      .from('lunch_payments')
+      .update({
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString()
+      })
+      .eq('id', paymentId)
+
+    if (error) {
+      setMessage('오류: ' + error.message)
+    } else {
+      setMessage('입금 확인이 완료되었습니다!')
+      loadPayments()
+    }
+  }
+
   const filteredProfiles = profiles.filter(profile => {
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
@@ -558,6 +637,16 @@ export default function AdminPage() {
             }`}
           >
             메뉴 관리
+          </button>
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+              activeTab === 'payments'
+                ? 'bg-pink-500 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            결제 관리
           </button>
         </div>
 
@@ -1033,6 +1122,85 @@ export default function AdminPage() {
                 식당을 선택하면 메뉴를 관리할 수 있습니다.
               </div>
             )}
+          </div>
+        )}
+
+        {/* 결제 관리 탭 */}
+        {activeTab === 'payments' && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold text-pink-500 mb-6">결제 관리</h2>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left p-3 text-pink-600">날짜</th>
+                    <th className="text-left p-3 text-pink-600">입금자</th>
+                    <th className="text-left p-3 text-pink-600">금액</th>
+                    <th className="text-left p-3 text-pink-600">결제방법</th>
+                    <th className="text-left p-3 text-pink-600">상태</th>
+                    <th className="text-left p-3 text-pink-600">액션</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center p-8 text-gray-500">
+                        결제 내역이 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    payments.map((payment) => (
+                      <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-3 text-gray-700">
+                          {formatDate(payment.created_at)}
+                        </td>
+                        <td className="p-3 text-gray-700">
+                          {payment.user_nickname || '알 수 없음'}
+                        </td>
+                        <td className="p-3 text-gray-700">
+                          ₩{payment.amount.toLocaleString()}
+                        </td>
+                        <td className="p-3 text-gray-700">
+                          {payment.payment_method === 'transfer' ? '계좌이체' : payment.payment_method === 'kakao' ? '카카오페이' : payment.payment_method}
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            payment.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : payment.status === 'confirmed'
+                              ? 'bg-green-100 text-green-700'
+                              : payment.status === 'cancelled'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {payment.status === 'pending'
+                              ? '확인 대기'
+                              : payment.status === 'confirmed'
+                              ? '확인 완료'
+                              : payment.status === 'cancelled'
+                              ? '취소됨'
+                              : payment.status}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          {payment.status === 'pending' ? (
+                            <button
+                              onClick={() => handleConfirmPayment(payment.id)}
+                              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 font-medium transition-colors"
+                            >
+                              입금 확인
+                            </button>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
