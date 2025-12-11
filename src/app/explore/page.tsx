@@ -36,10 +36,10 @@ export default function ExplorePage() {
   }, [])
 
   useEffect(() => {
-    if (user) {
+    if (user && currentUserProfile) {
       loadProfiles()
     }
-  }, [user, genderFilter, cityFilter])
+  }, [user, currentUserProfile, genderFilter, cityFilter])
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -67,13 +67,18 @@ export default function ExplorePage() {
 
   const loadProfiles = async () => {
     const { data: { user: currentUser } } = await supabase.auth.getUser()
-    if (!currentUser) return
+    if (!currentUser || !currentUserProfile) return
 
     let query = supabase
       .from('profiles')
       .select('id, nickname, gender, birth_year, organization, innovation_city, job_level, job_field, avatar_url, interests, bio')
       .neq('id', currentUser.id)
       .not('nickname', 'is', null)
+
+    // 같은 소속기관 제외
+    if (currentUserProfile.organization) {
+      query = query.neq('organization', currentUserProfile.organization)
+    }
 
     // 성별 필터가 선택된 경우에만 적용
     if (genderFilter && genderFilter !== 'all') {
@@ -89,6 +94,7 @@ export default function ExplorePage() {
     
     console.log('Loaded profiles:', data, 'Error:', error)
     console.log('Gender filter:', genderFilter, 'City filter:', cityFilter)
+    console.log('Current user organization:', currentUserProfile.organization)
     console.log('Profiles count:', data?.length || 0)
 
     if (error) {

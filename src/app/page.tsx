@@ -131,13 +131,19 @@ export default function Home() {
     // 현재 사용자와 반대 성별의 프로필 추천 (최대 10개)
     const oppositeGender = profile.gender === 'male' ? 'female' : 'male'
     
-    const { data } = await supabase
+    let query = supabase
       .from('profiles')
       .select('id, nickname, gender, birth_year, organization, innovation_city, avatar_url')
       .eq('gender', oppositeGender)
       .neq('id', user.id)
       .not('nickname', 'is', null)
-      .limit(10)
+
+    // 같은 소속기관 제외
+    if (profile.organization) {
+      query = query.neq('organization', profile.organization)
+    }
+
+    const { data } = await query.limit(10)
 
     if (data) {
       setRecommendedProfiles(data as Profile[])

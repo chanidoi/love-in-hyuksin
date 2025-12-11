@@ -91,6 +91,13 @@ export default function LunchPage() {
   const loadRequests = async () => {
     if (!user) return
 
+    // 현재 사용자 프로필 로드 (소속기관 확인용)
+    const { data: currentUserProfile } = await supabase
+      .from('profiles')
+      .select('organization')
+      .eq('id', user.id)
+      .single()
+
     // 받은 제안
     const { data: receivedRequestsData } = await supabase
       .from('lunch_requests')
@@ -119,26 +126,33 @@ export default function LunchPage() {
         .from('menus')
         .select('id, restaurant_id, name, price')
 
-      const mergedReceived = receivedRequestsData.map(request => {
-        const requesterProfile = requesterProfiles?.find(p => p.id === request.requester_id)
-        const restaurant = restaurants?.find(r => r.id === request.restaurant_id)
-        const requesterMenu = allMenus?.find(m => m.id === request.requester_menu_id)
-        const receiverMenu = allMenus?.find(m => m.id === request.receiver_menu_id)
+      const mergedReceived = receivedRequestsData
+        .map(request => {
+          const requesterProfile = requesterProfiles?.find(p => p.id === request.requester_id)
+          const restaurant = restaurants?.find(r => r.id === request.restaurant_id)
+          const requesterMenu = allMenus?.find(m => m.id === request.requester_menu_id)
+          const receiverMenu = allMenus?.find(m => m.id === request.receiver_menu_id)
 
-        return {
-          ...request,
-          requester: requesterProfile ? {
-            nickname: requesterProfile.nickname,
-            avatar_url: requesterProfile.avatar_url,
-            birth_year: requesterProfile.birth_year,
-            organization: requesterProfile.organization,
-            innovation_city: requesterProfile.innovation_city,
-          } : undefined,
-          restaurant: restaurant ? { name: restaurant.name } : undefined,
-          requester_menu: requesterMenu ? { name: requesterMenu.name, price: requesterMenu.price } : undefined,
-          receiver_menu: receiverMenu ? { name: receiverMenu.name, price: receiverMenu.price } : undefined,
-        }
-      })
+          return {
+            ...request,
+            requester: requesterProfile ? {
+              nickname: requesterProfile.nickname,
+              avatar_url: requesterProfile.avatar_url,
+              birth_year: requesterProfile.birth_year,
+              organization: requesterProfile.organization,
+              innovation_city: requesterProfile.innovation_city,
+            } : undefined,
+            restaurant: restaurant ? { name: restaurant.name } : undefined,
+            requester_menu: requesterMenu ? { name: requesterMenu.name, price: requesterMenu.price } : undefined,
+            receiver_menu: receiverMenu ? { name: receiverMenu.name, price: receiverMenu.price } : undefined,
+          }
+        })
+        // 같은 소속기관 제외
+        .filter(request => {
+          const requesterProfile = requesterProfiles?.find(p => p.id === request.requester_id)
+          if (!currentUserProfile?.organization || !requesterProfile?.organization) return true
+          return requesterProfile.organization !== currentUserProfile.organization
+        })
 
       setReceivedRequests(mergedReceived as any)
     } else {
@@ -172,26 +186,33 @@ export default function LunchPage() {
         .from('menus')
         .select('id, restaurant_id, name, price')
 
-      const mergedSent = sentRequestsData.map(request => {
-        const receiverProfile = receiverProfiles?.find(p => p.id === request.receiver_id)
-        const restaurant = restaurants?.find(r => r.id === request.restaurant_id)
-        const requesterMenu = allMenus?.find(m => m.id === request.requester_menu_id)
-        const receiverMenu = allMenus?.find(m => m.id === request.receiver_menu_id)
+      const mergedSent = sentRequestsData
+        .map(request => {
+          const receiverProfile = receiverProfiles?.find(p => p.id === request.receiver_id)
+          const restaurant = restaurants?.find(r => r.id === request.restaurant_id)
+          const requesterMenu = allMenus?.find(m => m.id === request.requester_menu_id)
+          const receiverMenu = allMenus?.find(m => m.id === request.receiver_menu_id)
 
-        return {
-          ...request,
-          receiver: receiverProfile ? {
-            nickname: receiverProfile.nickname,
-            avatar_url: receiverProfile.avatar_url,
-            birth_year: receiverProfile.birth_year,
-            organization: receiverProfile.organization,
-            innovation_city: receiverProfile.innovation_city,
-          } : undefined,
-          restaurant: restaurant ? { name: restaurant.name } : undefined,
-          requester_menu: requesterMenu ? { name: requesterMenu.name, price: requesterMenu.price } : undefined,
-          receiver_menu: receiverMenu ? { name: receiverMenu.name, price: receiverMenu.price } : undefined,
-        }
-      })
+          return {
+            ...request,
+            receiver: receiverProfile ? {
+              nickname: receiverProfile.nickname,
+              avatar_url: receiverProfile.avatar_url,
+              birth_year: receiverProfile.birth_year,
+              organization: receiverProfile.organization,
+              innovation_city: receiverProfile.innovation_city,
+            } : undefined,
+            restaurant: restaurant ? { name: restaurant.name } : undefined,
+            requester_menu: requesterMenu ? { name: requesterMenu.name, price: requesterMenu.price } : undefined,
+            receiver_menu: receiverMenu ? { name: receiverMenu.name, price: receiverMenu.price } : undefined,
+          }
+        })
+        // 같은 소속기관 제외
+        .filter(request => {
+          const receiverProfile = receiverProfiles?.find(p => p.id === request.receiver_id)
+          if (!currentUserProfile?.organization || !receiverProfile?.organization) return true
+          return receiverProfile.organization !== currentUserProfile.organization
+        })
 
       setSentRequests(mergedSent as any)
     } else {

@@ -33,7 +33,6 @@ export default function MatchingPage() {
   const [prefHasChildren, setPrefHasChildren] = useState('')
   const [prefMinAge, setPrefMinAge] = useState('')
   const [prefMaxAge, setPrefMaxAge] = useState('')
-  const [excludeSameOrg, setExcludeSameOrg] = useState(false)
 
   useEffect(() => {
     checkUser()
@@ -76,7 +75,6 @@ export default function MatchingPage() {
       setPrefHasChildren(preferences.prefer_has_children || '')
       setPrefMinAge(preferences.prefer_age_min || '')
       setPrefMaxAge(preferences.prefer_age_max || '')
-      setExcludeSameOrg(preferences.exclude_same_organization || false)
     }
 
     setLoading(false)
@@ -110,7 +108,6 @@ export default function MatchingPage() {
         prefer_has_children: prefHasChildren,
         prefer_age_min: prefMinAge ? parseInt(prefMinAge) : null,
         prefer_age_max: prefMaxAge ? parseInt(prefMaxAge) : null,
-        exclude_same_organization: excludeSameOrg,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
 
@@ -456,20 +453,6 @@ export default function MatchingPage() {
                 max="60"
                 className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700 placeholder-gray-400"
               />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={excludeSameOrg}
-                  onChange={(e) => setExcludeSameOrg(e.target.checked)}
-                  className="w-5 h-5 text-pink-500 border-gray-300 rounded focus:ring-pink-500"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  같은 직장 제외
-                </span>
-              </label>
             </div>
           </div>
         </div>
