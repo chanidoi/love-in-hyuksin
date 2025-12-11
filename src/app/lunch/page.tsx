@@ -43,6 +43,7 @@ export default function LunchPage() {
   const [menus, setMenus] = useState<Menu[]>([])
   const [selectedMenuId, setSelectedMenuId] = useState('')
   const [restaurantName, setRestaurantName] = useState('')
+  const [paidRequests, setPaidRequests] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     checkUser()
@@ -52,6 +53,7 @@ export default function LunchPage() {
     if (user) {
       loadRequests()
       loadAcceptedMatches()
+      loadPaymentStatus()
     }
   }, [user])
 
@@ -70,12 +72,12 @@ export default function LunchPage() {
   const loadRequests = async () => {
     if (!user) return
 
-    // 받은 제안: 1단계 - lunch_requests 조회
+    // 받은 제안: 1단계 - lunch_requests 조회 (pending과 accepted 모두)
     const { data: receivedRequestsData, error: receivedError } = await supabase
       .from('lunch_requests')
       .select('id, requester_id, receiver_id, proposed_date, status, restaurant_id')
       .eq('receiver_id', user.id)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'accepted'])
       .order('proposed_date', { ascending: true })
 
     console.log('받은 제안 조회 결과:', receivedRequestsData)
@@ -215,6 +217,20 @@ export default function LunchPage() {
       setAcceptedMatches(mergedAccepted as any)
     } else {
       setAcceptedMatches([])
+    }
+  }
+
+  const loadPaymentStatus = async () => {
+    if (!user) return
+
+    const { data, error } = await supabase
+      .from('lunch_payments')
+      .select('lunch_request_id')
+      .eq('user_id', user.id)
+
+    if (!error && data) {
+      const paidSet = new Set(data.map(payment => payment.lunch_request_id))
+      setPaidRequests(paidSet)
     }
   }
 
@@ -510,18 +526,35 @@ export default function LunchPage() {
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => handleAccept(request)}
-                      className="flex-1 bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 font-medium"
-                    >
-                      수락
-                    </button>
-                    <button
-                      onClick={() => handleReject(request.id)}
-                      className="flex-1 bg-gray-200 text-gray-700 p-3 rounded-lg hover:bg-gray-300 font-medium"
-                    >
-                      거절
-                    </button>
+                    {request.status === 'pending' ? (
+                      <>
+                        <button
+                          onClick={() => handleAccept(request)}
+                          className="flex-1 bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 font-medium"
+                        >
+                          수락
+                        </button>
+                        <button
+                          onClick={() => handleReject(request.id)}
+                          className="flex-1 bg-gray-200 text-gray-700 p-3 rounded-lg hover:bg-gray-300 font-medium"
+                        >
+                          거절
+                        </button>
+                      </>
+                    ) : request.status === 'accepted' ? (
+                      paidRequests.has(request.id) ? (
+                        <div className="flex-1 text-center text-green-600 font-medium py-3">
+                          결제 완료
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/payment/${request.id}`}
+                          className="flex-1 bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 font-medium text-center"
+                        >
+                          결제하기
+                        </Link>
+                      )
+                    ) : null}
                   </div>
                 </div>
               ))
@@ -542,7 +575,7 @@ export default function LunchPage() {
                   key={request.id}
                   className="bg-white p-6 rounded-lg shadow-md"
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="text-xl font-semibold text-gray-800 mb-2">
                         {request.receiver?.nickname || '알 수 없음'}
@@ -555,6 +588,22 @@ export default function LunchPage() {
                       </p>
                     </div>
                   </div>
+                  {request.status === 'accepted' && (
+                    <div className="flex gap-3">
+                      {paidRequests.has(request.id) ? (
+                        <div className="flex-1 text-center text-green-600 font-medium py-3">
+                          결제 완료
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/payment/${request.id}`}
+                          className="flex-1 bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 font-medium text-center"
+                        >
+                          결제하기
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))
             )}
