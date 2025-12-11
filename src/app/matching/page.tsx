@@ -112,7 +112,7 @@ export default function MatchingPage() {
         prefer_age_max: prefMaxAge ? parseInt(prefMaxAge) : null,
         exclude_same_organization: excludeSameOrg,
         updated_at: new Date().toISOString(),
-      })
+      }, { onConflict: 'user_id' })
 
     if (error) {
       setMessage('오류: ' + error.message)
