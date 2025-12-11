@@ -4,6 +4,11 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
+const ALLOWED_DOMAINS = [
+  'kalis.or.kr',
+  'lh.or.kr'
+]
+
 export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -13,6 +18,13 @@ export default function SignupPage() {
   const handleSignup = async () => {
     if (!email || !password) {
       setMessage('오류: 이메일과 비밀번호를 입력해주세요.')
+      return
+    }
+
+    // 이메일 도메인 검증
+    const emailDomain = email.split('@')[1]
+    if (!emailDomain || !ALLOWED_DOMAINS.includes(emailDomain)) {
+      setMessage('오류: 현재 허용된 공공기관 이메일만 가입 가능합니다')
       return
     }
 
@@ -70,6 +82,9 @@ export default function SignupPage() {
               onKeyDown={handleKeyDown}
               className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all text-gray-700 placeholder-gray-400"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              ※ 공공기관 이메일만 가입 가능합니다 (예: @lh.or.kr, @kalis.or.kr)
+            </p>
           </div>
           
           <div>

@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+
+const ADMIN_EMAILS = ['pjc77@kalis.or.kr']
 
 interface Profile {
   id: string
@@ -31,6 +34,7 @@ export default function AdminPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [activeTab, setActiveTab] = useState<'users' | 'matches' | 'manual'>('users')
   
   // 회원 관리
@@ -80,7 +84,16 @@ export default function AdminPage() {
       return
     }
 
+    // 관리자 권한 체크
+    if (!user.email || !ADMIN_EMAILS.includes(user.email)) {
+      setUser(null)
+      setIsAdmin(false)
+      setLoading(false)
+      return
+    }
+
     setUser(user)
+    setIsAdmin(true)
     setLoading(false)
   }
 
@@ -249,6 +262,26 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <p className="text-pink-500">로딩 중...</p>
+      </div>
+    )
+  }
+
+  if (!isAdmin || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full mx-4 text-center">
+          <div className="text-6xl mb-4">🚫</div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">관리자 권한이 없습니다</h1>
+          <p className="text-gray-600 mb-6">
+            이 페이지는 관리자만 접근할 수 있습니다.
+          </p>
+          <Link
+            href="/"
+            className="inline-block bg-pink-500 text-white px-6 py-3 rounded-lg hover:bg-pink-600 transition-colors font-medium"
+          >
+            홈으로 돌아가기
+          </Link>
+        </div>
       </div>
     )
   }
