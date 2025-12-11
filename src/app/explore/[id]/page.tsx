@@ -35,6 +35,15 @@ interface Restaurant {
   is_outside: boolean
 }
 
+interface Menu {
+  id: string
+  restaurant_id: string
+  name: string
+  price: number
+  description: string | null
+  is_available: boolean
+}
+
 export default function ProfileDetailPage() {
   const router = useRouter()
   const params = useParams()
@@ -49,6 +58,8 @@ export default function ProfileDetailPage() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [selectedRestaurantId, setSelectedRestaurantId] = useState('')
+  const [menus, setMenus] = useState<Menu[]>([])
+  const [selectedMenuId, setSelectedMenuId] = useState('')
 
   useEffect(() => {
     checkUser()
@@ -62,6 +73,15 @@ export default function ProfileDetailPage() {
       loadRestaurants()
     }
   }, [user, params.id])
+
+  useEffect(() => {
+    if (selectedRestaurantId) {
+      loadMenus(selectedRestaurantId)
+    } else {
+      setMenus([])
+      setSelectedMenuId('')
+    }
+  }, [selectedRestaurantId])
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -135,6 +155,21 @@ export default function ProfileDetailPage() {
     }
   }
 
+  const loadMenus = async (restaurantId: string) => {
+    const { data, error } = await supabase
+      .from('menus')
+      .select('id, restaurant_id, name, price, description, is_available')
+      .eq('restaurant_id', restaurantId)
+      .eq('is_available', true)
+      .order('name', { ascending: true })
+
+    if (error) {
+      console.error('Error loading menus:', error)
+    } else {
+      setMenus((data || []) as Menu[])
+    }
+  }
+
   const getTomorrowDate = (): string => {
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
@@ -163,12 +198,14 @@ export default function ProfileDetailPage() {
     // 내일 날짜를 기본값으로 설정
     setProposedDate(getTomorrowDate())
     setSelectedRestaurantId('')
+    setSelectedMenuId('')
   }
 
   const handleCloseModal = () => {
     setShowModal(false)
     setProposedDate('')
     setSelectedRestaurantId('')
+    setSelectedMenuId('')
     setMessage('')
   }
 
@@ -183,6 +220,11 @@ export default function ProfileDetailPage() {
       return
     }
 
+    if (!selectedMenuId) {
+      setMessage('메뉴를 선택해주세요.')
+      return
+    }
+
     setSubmitting(true)
     setMessage('')
 
@@ -193,6 +235,7 @@ export default function ProfileDetailPage() {
         receiver_id: params.id as string,
         proposed_date: proposedDate,
         restaurant_id: selectedRestaurantId,
+        menu_id: selectedMenuId,
         status: 'pending',
       })
 
@@ -207,9 +250,12 @@ export default function ProfileDetailPage() {
         setShowModal(false)
         setMessage('')
         setSelectedRestaurantId('')
+        setSelectedMenuId('')
       }, 2000)
     }
   }
+
+  const selectedMenu = menus.find(menu => menu.id === selectedMenuId)
 
   if (loading) {
     return (
@@ -401,6 +447,40 @@ export default function ProfileDetailPage() {
               )}
             </div>
 
+            {selectedRestaurantId && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  메뉴 선택
+                </label>
+                {menus.length === 0 ? (
+                  <div className="w-full p-3 border rounded-lg bg-gray-50 text-gray-500 text-center">
+                    등록된 메뉴가 없습니다
+                  </div>
+                ) : (
+                  <select
+                    value={selectedMenuId}
+                    onChange={(e) => setSelectedMenuId(e.target.value)}
+                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700"
+                  >
+                    <option value="">메뉴를 선택하세요</option>
+                    {menus.map((menu) => (
+                      <option key={menu.id} value={menu.id}>
+                        {menu.name} - ₩{menu.price.toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {selectedMenu && (
+              <div className="mb-4 p-3 bg-pink-50 border border-pink-200 rounded-lg">
+                <p className="text-sm font-medium text-pink-600">
+                  선택한 메뉴: {selectedMenu.name} (₩{selectedMenu.price.toLocaleString()})
+                </p>
+              </div>
+            )}
+
             {message && (
               <p className={`mb-4 text-center ${
                 message.includes('오류') ? 'text-red-500' : 'text-green-500'
@@ -418,7 +498,7 @@ export default function ProfileDetailPage() {
               </button>
               <button
                 onClick={handleSubmitProposal}
-                disabled={submitting || !proposedDate || !selectedRestaurantId}
+                disabled={submitting || !proposedDate || !selectedRestaurantId || !selectedMenuId}
                 className="flex-1 bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 disabled:bg-gray-400 font-medium"
               >
                 {submitting ? '제안 중...' : '제안하기'}
