@@ -11,6 +11,7 @@ interface LunchRequest {
   receiver_id: string
   proposed_date: string
   status: string
+  restaurant_id?: string
   requester?: {
     nickname: string
   }
@@ -19,6 +20,13 @@ interface LunchRequest {
   }
   hasReviewed?: boolean
   canChat?: boolean
+}
+
+interface Menu {
+  id: string
+  restaurant_id: string
+  name: string
+  price: number
 }
 
 export default function LunchPage() {
@@ -30,6 +38,11 @@ export default function LunchPage() {
   const [sentRequests, setSentRequests] = useState<LunchRequest[]>([])
   const [acceptedMatches, setAcceptedMatches] = useState<LunchRequest[]>([])
   const [message, setMessage] = useState('')
+  const [showAcceptModal, setShowAcceptModal] = useState(false)
+  const [selectedRequest, setSelectedRequest] = useState<LunchRequest | null>(null)
+  const [menus, setMenus] = useState<Menu[]>([])
+  const [selectedMenuId, setSelectedMenuId] = useState('')
+  const [restaurantName, setRestaurantName] = useState('')
 
   useEffect(() => {
     checkUser()
@@ -60,7 +73,7 @@ export default function LunchPage() {
     // 받은 제안: 1단계 - lunch_requests 조회
     const { data: receivedRequestsData, error: receivedError } = await supabase
       .from('lunch_requests')
-      .select('id, requester_id, receiver_id, proposed_date, status')
+      .select('id, requester_id, receiver_id, proposed_date, status, restaurant_id')
       .eq('receiver_id', user.id)
       .eq('status', 'pending')
       .order('proposed_date', { ascending: true })
@@ -205,17 +218,76 @@ export default function LunchPage() {
     }
   }
 
-  const handleAccept = async (requestId: string) => {
+  const loadMenus = async (restaurantId: string) => {
+    const { data, error } = await supabase
+      .from('menus')
+      .select('id, restaurant_id, name, price')
+      .eq('restaurant_id', restaurantId)
+      .eq('is_available', true)
+      .order('name', { ascending: true })
+
+    if (error) {
+      console.error('Error loading menus:', error)
+      setMessage('메뉴를 불러오는 중 오류가 발생했습니다.')
+    } else {
+      setMenus((data || []) as Menu[])
+    }
+  }
+
+  const handleAccept = async (request: LunchRequest) => {
+    if (!request.restaurant_id) {
+      setMessage('식당 정보가 없습니다.')
+      return
+    }
+
+    setSelectedRequest(request)
+    setSelectedMenuId('')
+    setShowAcceptModal(true)
+    setMessage('')
+    
+    // 식당 정보 불러오기
+    const { data: restaurantData } = await supabase
+      .from('restaurants')
+      .select('name')
+      .eq('id', request.restaurant_id)
+      .single()
+    
+    if (restaurantData) {
+      setRestaurantName(restaurantData.name)
+    }
+    
+    await loadMenus(request.restaurant_id)
+  }
+
+  const handleCloseAcceptModal = () => {
+    setShowAcceptModal(false)
+    setSelectedRequest(null)
+    setMenus([])
+    setSelectedMenuId('')
+    setRestaurantName('')
+    setMessage('')
+  }
+
+  const handleConfirmAccept = async () => {
+    if (!selectedRequest || !selectedMenuId) {
+      setMessage('메뉴를 선택해주세요.')
+      return
+    }
+
     setMessage('')
     const { error } = await supabase
       .from('lunch_requests')
-      .update({ status: 'accepted' })
-      .eq('id', requestId)
+      .update({ 
+        status: 'accepted',
+        receiver_menu_id: selectedMenuId
+      })
+      .eq('id', selectedRequest.id)
 
     if (error) {
       setMessage('오류: ' + error.message)
     } else {
       setMessage('점심 약속이 수락되었습니다!')
+      handleCloseAcceptModal()
       loadRequests()
       loadAcceptedMatches()
     }
@@ -439,7 +511,7 @@ export default function LunchPage() {
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => handleAccept(request.id)}
+                      onClick={() => handleAccept(request)}
                       className="flex-1 bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 font-medium"
                     >
                       수락
@@ -550,6 +622,90 @@ export default function LunchPage() {
           </div>
         )}
       </div>
+
+      {/* 수락 모달 */}
+      {showAcceptModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold text-pink-500 mb-4">점심 수락</h2>
+            
+            {/* 신청자 정보 */}
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600 mb-1">신청자</p>
+              <p className="font-semibold text-gray-800">
+                {selectedRequest.requester?.nickname || '알 수 없음'}
+              </p>
+              <p className="text-sm text-gray-600 mt-2">
+                📅 {formatDate(selectedRequest.proposed_date)}
+              </p>
+              {restaurantName && (
+                <p className="text-sm text-gray-600 mt-1">
+                  🍽️ {restaurantName}
+                </p>
+              )}
+            </div>
+
+            {/* 메뉴 선택 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                메뉴 선택
+              </label>
+              <p className="text-xs text-gray-500 mb-2">내가 먹을 메뉴를 선택하세요</p>
+              {menus.length === 0 ? (
+                <div className="w-full p-3 border rounded-lg bg-gray-50 text-gray-500 text-center">
+                  등록된 메뉴가 없습니다
+                </div>
+              ) : (
+                <select
+                  value={selectedMenuId}
+                  onChange={(e) => setSelectedMenuId(e.target.value)}
+                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700"
+                >
+                  <option value="">메뉴를 선택하세요</option>
+                  {menus.map((menu) => (
+                    <option key={menu.id} value={menu.id}>
+                      {menu.name} - ₩{menu.price.toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* 선택한 메뉴 가격 표시 */}
+            {selectedMenuId && (
+              <div className="mb-4 p-3 bg-pink-50 border border-pink-200 rounded-lg">
+                <p className="text-sm font-medium text-pink-600">
+                  선택한 메뉴: {menus.find(m => m.id === selectedMenuId)?.name} (₩{menus.find(m => m.id === selectedMenuId)?.price.toLocaleString()})
+                </p>
+              </div>
+            )}
+
+            {message && (
+              <p className={`mb-4 text-center ${
+                message.includes('오류') ? 'text-red-500' : 'text-green-500'
+              }`}>
+                {message}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCloseAcceptModal}
+                className="flex-1 bg-gray-200 text-gray-700 p-3 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleConfirmAccept}
+                disabled={!selectedMenuId}
+                className="flex-1 bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 disabled:bg-gray-400 font-medium"
+              >
+                수락하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

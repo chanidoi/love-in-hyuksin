@@ -235,7 +235,7 @@ export default function ProfileDetailPage() {
         receiver_id: params.id as string,
         proposed_date: proposedDate,
         restaurant_id: selectedRestaurantId,
-        menu_id: selectedMenuId,
+        requester_menu_id: selectedMenuId,
         status: 'pending',
       })
 
@@ -452,6 +452,7 @@ export default function ProfileDetailPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   메뉴 선택
                 </label>
+                <p className="text-xs text-gray-500 mb-2">내가 먹을 메뉴를 선택하세요</p>
                 {menus.length === 0 ? (
                   <div className="w-full p-3 border rounded-lg bg-gray-50 text-gray-500 text-center">
                     등록된 메뉴가 없습니다
