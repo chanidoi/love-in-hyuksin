@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -43,9 +44,19 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-6 text-pink-500">러인혁 회원가입</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-50 to-white py-12">
+      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        {/* 로고 */}
+        <div className="text-center mb-6">
+          <Link href="/" className="inline-block">
+            <h1 className="text-3xl font-bold text-pink-500 hover:text-pink-600 transition-colors">
+              러인혁
+            </h1>
+          </Link>
+          <div className="text-4xl mt-2">🎉</div>
+        </div>
+
+        <h2 className="text-2xl font-bold text-center mb-2 text-gray-800">회원가입</h2>
         <p className="text-gray-600 text-center mb-6">혁신도시 공공기관 남녀의 설레는 만남</p>
         
         <div className="space-y-4">
@@ -57,7 +68,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700 placeholder-gray-400"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all text-gray-700 placeholder-gray-400"
             />
           </div>
           
@@ -69,7 +80,7 @@ export default function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700 placeholder-gray-400"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all text-gray-700 placeholder-gray-400"
             />
           </div>
 
@@ -77,7 +88,7 @@ export default function SignupPage() {
             type="button"
             onClick={handleSignup}
             disabled={loading}
-            className="w-full bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 disabled:bg-gray-400"
+            className="w-full bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 disabled:bg-gray-400 transition-colors transform hover:scale-[1.02] active:scale-[0.98] font-medium"
           >
             {loading ? '처리 중...' : '회원가입'}
           </button>

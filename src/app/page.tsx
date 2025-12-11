@@ -103,24 +103,60 @@ export default function Home() {
   // 로그인 안 된 상태
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="max-w-md w-full mx-4 text-center">
-          <h1 className="text-5xl font-bold text-pink-500 mb-4">
-            러인혁
-          </h1>
-          <p className="text-lg text-gray-600 mb-8">
-            혁신도시 공공기관 남녀의 설레는 만남
-          </p>
-          <div className="flex flex-col gap-3">
+      <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white py-12 pb-24">
+        <div className="max-w-4xl mx-auto px-4">
+          {/* 헤더 섹션 */}
+          <div className="text-center mb-12">
+            <div className="mb-4">
+              <span className="text-6xl">💕</span>
+            </div>
+            <h1 className="text-4xl font-bold text-pink-500 mb-2">
+              러인혁
+            </h1>
+            <p className="text-xl text-pink-400 mb-3">
+              러브 in 혁신
+            </p>
+            <p className="text-gray-600 text-lg">
+              혁신도시 공공기관 남녀의 설레는 만남
+            </p>
+          </div>
+
+          {/* 핵심 기능 소개 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition-shadow">
+              <div className="text-4xl mb-3">📋</div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">프로필로 매칭</h3>
+              <p className="text-sm text-gray-600">
+                사진 없이 프로필 정보로 매칭
+              </p>
+            </div>
+            <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition-shadow">
+              <div className="text-4xl mb-3">🍽️</div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">점심 한 끼</h3>
+              <p className="text-sm text-gray-600">
+                부담 없는 점심 식사로 첫 만남
+              </p>
+            </div>
+            <div className="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg transition-shadow">
+              <div className="text-4xl mb-3">💬</div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">만남 후 채팅</h3>
+              <p className="text-sm text-gray-600">
+                서로 OK하면 대화 시작
+              </p>
+            </div>
+          </div>
+
+          {/* 버튼 */}
+          <div className="flex flex-col gap-3 max-w-md mx-auto">
             <Link
               href="/signup"
-              className="w-full bg-pink-500 text-white p-4 rounded-lg hover:bg-pink-600 font-medium text-lg"
+              className="w-full bg-pink-500 text-white p-4 rounded-lg hover:bg-pink-600 font-medium text-lg text-center shadow-md transition-colors"
             >
               회원가입
             </Link>
             <Link
               href="/login"
-              className="w-full bg-white border-2 border-pink-500 text-pink-500 p-4 rounded-lg hover:bg-pink-50 font-medium text-lg"
+              className="w-full bg-white border-2 border-pink-500 text-pink-500 p-4 rounded-lg hover:bg-pink-50 font-medium text-lg text-center transition-colors"
             >
               로그인
             </Link>
@@ -134,16 +170,17 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100 py-8 pb-24">
       <div className="max-w-2xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        {/* 환영 메시지 */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
           <h2 className="text-2xl font-bold text-pink-500 mb-2">
-            안녕하세요, {profile?.nickname || '회원'}님!
+            안녕하세요, {profile?.nickname || '회원'}님! 💕
           </h2>
-          <p className="text-gray-600">오늘도 좋은 만남이 있기를 바랍니다 💕</p>
+          <p className="text-gray-600">오늘도 좋은 만남이 있기를 바랍니다</p>
         </div>
 
         {/* 오늘의 점심 약속 */}
         {todayLunch && (
-          <div className="bg-gradient-to-r from-pink-100 to-pink-50 border-2 border-pink-300 rounded-lg shadow-md p-6 mb-6">
+          <div className="bg-gradient-to-r from-pink-100 to-pink-50 border-2 border-pink-300 rounded-xl shadow-md p-6 mb-6">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">🍽️</span>
               <h3 className="text-xl font-bold text-pink-600">오늘의 점심 약속</h3>
@@ -158,7 +195,7 @@ export default function Home() {
         {newProposals > 0 && (
           <Link
             href="/lunch"
-            className="block bg-yellow-50 border-2 border-yellow-300 rounded-lg shadow-md p-6 mb-6 hover:bg-yellow-100 transition-colors"
+            className="block bg-yellow-50 border-2 border-yellow-300 rounded-xl shadow-md p-6 mb-6 hover:bg-yellow-100 transition-colors"
           >
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">🔔</span>
@@ -171,10 +208,35 @@ export default function Home() {
           </Link>
         )}
 
-        {/* 회원 탐색하기 버튼 */}
+        {/* 빠른 메뉴 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Link
+            href="/explore"
+            className="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition-shadow border-2 border-transparent hover:border-pink-200"
+          >
+            <div className="text-3xl mb-2">🔍</div>
+            <p className="font-semibold text-gray-800">회원 탐색</p>
+          </Link>
+          <Link
+            href="/lunch"
+            className="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition-shadow border-2 border-transparent hover:border-pink-200"
+          >
+            <div className="text-3xl mb-2">🍽️</div>
+            <p className="font-semibold text-gray-800">점심 현황</p>
+          </Link>
+          <Link
+            href="/chat"
+            className="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition-shadow border-2 border-transparent hover:border-pink-200"
+          >
+            <div className="text-3xl mb-2">💬</div>
+            <p className="font-semibold text-gray-800">채팅</p>
+          </Link>
+        </div>
+
+        {/* 회원 탐색하기 버튼 (큰 버튼) */}
         <Link
           href="/explore"
-          className="block w-full bg-pink-500 text-white p-4 rounded-lg hover:bg-pink-600 font-medium text-lg text-center shadow-md"
+          className="block w-full bg-pink-500 text-white p-4 rounded-xl hover:bg-pink-600 font-medium text-lg text-center shadow-md transition-colors"
         >
           회원 탐색하기
         </Link>

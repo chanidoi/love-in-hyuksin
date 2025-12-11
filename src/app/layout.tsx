@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import BottomNav from '@/components/BottomNav';
 
@@ -11,6 +11,11 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const notoSansKr = Noto_Sans_KR({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased pb-16`}
+        className={`${geistSans.variable} ${geistMono.variable} ${notoSansKr.className} antialiased pb-16`}
       >
         {children}
         <BottomNav />
