@@ -6,7 +6,10 @@ import Link from 'next/link'
 
 const ALLOWED_DOMAINS = [
   'kalis.or.kr',
-  'lh.or.kr'
+  'lh.or.kr',
+  'kdn.com',
+  'koroad.or.kr',
+  'khnp.co.kr'
 ]
 
 export default function SignupPage() {
@@ -94,7 +97,7 @@ export default function SignupPage() {
               className="w-full bg-white/90 rounded-xl py-4 px-5 placeholder-gray-400 text-gray-700 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
             />
             <p className="text-xs text-white/80 mt-2 ml-1">
-              ※ 공공기관 이메일만 가입 가능합니다 (예: @lh.or.kr, @kalis.or.kr)
+              ※ 공공기관 이메일만 가입 가능합니다 (예: @lh.or.kr, @kalis.or.kr, @kdn.com 등)
             </p>
           </div>
           
