@@ -40,12 +40,22 @@ interface Restaurant {
   created_at: string
 }
 
+interface Menu {
+  id: string
+  restaurant_id: string
+  name: string
+  price: number
+  description: string | null
+  is_available: boolean
+  created_at: string
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'users' | 'matches' | 'manual' | 'restaurants'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'matches' | 'manual' | 'restaurants' | 'menus'>('users')
   
   // 회원 관리
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -72,6 +82,15 @@ export default function AdminPage() {
   const [restaurantCity, setRestaurantCity] = useState('')
   const [restaurantIsOutside, setRestaurantIsOutside] = useState(false)
   const [addingRestaurant, setAddingRestaurant] = useState(false)
+  
+  // 메뉴 관리
+  const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([])
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState('')
+  const [menus, setMenus] = useState<Menu[]>([])
+  const [menuName, setMenuName] = useState('')
+  const [menuPrice, setMenuPrice] = useState('')
+  const [menuDescription, setMenuDescription] = useState('')
+  const [addingMenu, setAddingMenu] = useState(false)
 
   useEffect(() => {
     checkUser()
@@ -87,9 +106,19 @@ export default function AdminPage() {
         loadUsersForMatching()
       } else if (activeTab === 'restaurants') {
         loadRestaurants()
+      } else if (activeTab === 'menus') {
+        loadAllRestaurants()
       }
     }
   }, [user, activeTab])
+
+  useEffect(() => {
+    if (activeTab === 'menus' && selectedRestaurantId) {
+      loadMenus(selectedRestaurantId)
+    } else {
+      setMenus([])
+    }
+  }, [activeTab, selectedRestaurantId])
 
   useEffect(() => {
     if (activeTab === 'matches') {
@@ -298,6 +327,107 @@ export default function AdminPage() {
     }
   }
 
+  const loadAllRestaurants = async () => {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('id, name, category, location, innovation_city, is_outside, created_at')
+      .order('name', { ascending: true })
+
+    if (error) {
+      console.error('Error loading restaurants:', error)
+    } else {
+      setAllRestaurants((data || []) as Restaurant[])
+    }
+  }
+
+  const loadMenus = async (restaurantId: string) => {
+    const { data, error } = await supabase
+      .from('menus')
+      .select('id, restaurant_id, name, price, description, is_available, created_at')
+      .eq('restaurant_id', restaurantId)
+      .order('name', { ascending: true })
+
+    if (error) {
+      console.error('Error loading menus:', error)
+      setMessage('오류: ' + error.message)
+    } else {
+      setMenus((data || []) as Menu[])
+    }
+  }
+
+  const handleAddMenu = async () => {
+    if (!selectedRestaurantId || !menuName || !menuPrice) {
+      setMessage('식당, 메뉴명, 가격을 모두 입력해주세요.')
+      return
+    }
+
+    const price = parseFloat(menuPrice)
+    if (isNaN(price) || price < 0) {
+      setMessage('올바른 가격을 입력해주세요.')
+      return
+    }
+
+    setAddingMenu(true)
+    setMessage('')
+
+    const { error } = await supabase
+      .from('menus')
+      .insert({
+        restaurant_id: selectedRestaurantId,
+        name: menuName,
+        price: price,
+        description: menuDescription || null,
+        is_available: true,
+      })
+
+    if (error) {
+      setMessage('오류: ' + error.message)
+      setAddingMenu(false)
+    } else {
+      setMessage('메뉴가 추가되었습니다!')
+      setMenuName('')
+      setMenuPrice('')
+      setMenuDescription('')
+      setAddingMenu(false)
+      loadMenus(selectedRestaurantId)
+    }
+  }
+
+  const handleDeleteMenu = async (menuId: string) => {
+    if (!confirm('정말 이 메뉴를 삭제하시겠습니까?')) {
+      return
+    }
+
+    const { error } = await supabase
+      .from('menus')
+      .delete()
+      .eq('id', menuId)
+
+    if (error) {
+      setMessage('오류: ' + error.message)
+    } else {
+      setMessage('메뉴가 삭제되었습니다!')
+      if (selectedRestaurantId) {
+        loadMenus(selectedRestaurantId)
+      }
+    }
+  }
+
+  const handleToggleAvailable = async (menuId: string, currentStatus: boolean) => {
+    const { error } = await supabase
+      .from('menus')
+      .update({ is_available: !currentStatus })
+      .eq('id', menuId)
+
+    if (error) {
+      setMessage('오류: ' + error.message)
+    } else {
+      if (selectedRestaurantId) {
+        loadMenus(selectedRestaurantId)
+      }
+    }
+  }
+
   const filteredProfiles = profiles.filter(profile => {
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
@@ -418,6 +548,16 @@ export default function AdminPage() {
             }`}
           >
             식당 관리
+          </button>
+          <button
+            onClick={() => setActiveTab('menus')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+              activeTab === 'menus'
+                ? 'bg-pink-500 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            메뉴 관리
           </button>
         </div>
 
@@ -743,6 +883,156 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* 메뉴 관리 탭 */}
+        {activeTab === 'menus' && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold text-pink-500 mb-6">메뉴 관리</h2>
+
+            {/* 식당 선택 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                식당 선택
+              </label>
+              <select
+                value={selectedRestaurantId}
+                onChange={(e) => setSelectedRestaurantId(e.target.value)}
+                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700"
+              >
+                <option value="">식당을 선택하세요</option>
+                {allRestaurants.map((restaurant) => (
+                  <option key={restaurant.id} value={restaurant.id}>
+                    {restaurant.name} ({restaurant.category})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 메뉴 추가 폼 */}
+            {selectedRestaurantId && (
+              <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">메뉴 추가</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      메뉴명 *
+                    </label>
+                    <input
+                      type="text"
+                      value={menuName}
+                      onChange={(e) => setMenuName(e.target.value)}
+                      placeholder="메뉴명 입력"
+                      className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700 placeholder-gray-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      가격 (원) *
+                    </label>
+                    <input
+                      type="number"
+                      value={menuPrice}
+                      onChange={(e) => setMenuPrice(e.target.value)}
+                      placeholder="가격 입력"
+                      min="0"
+                      className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700 placeholder-gray-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      설명 (선택사항)
+                    </label>
+                    <input
+                      type="text"
+                      value={menuDescription}
+                      onChange={(e) => setMenuDescription(e.target.value)}
+                      placeholder="메뉴 설명"
+                      className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700 placeholder-gray-400"
+                    />
+                  </div>
+                </div>
+
+                {message && (
+                  <div className={`mt-4 p-3 rounded-lg text-center ${
+                    message.includes('오류') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                  }`}>
+                    {message}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleAddMenu}
+                  disabled={addingMenu}
+                  className="mt-4 w-full bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 disabled:bg-gray-400 font-medium"
+                >
+                  {addingMenu ? '추가 중...' : '메뉴 추가'}
+                </button>
+              </div>
+            )}
+
+            {/* 메뉴 목록 */}
+            {selectedRestaurantId && (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left p-3 text-pink-600">메뉴명</th>
+                      <th className="text-left p-3 text-pink-600">가격</th>
+                      <th className="text-left p-3 text-pink-600">설명</th>
+                      <th className="text-left p-3 text-pink-600">판매중</th>
+                      <th className="text-left p-3 text-pink-600">작업</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {menus.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center p-8 text-gray-500">
+                          등록된 메뉴가 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      menus.map((menu) => (
+                        <tr key={menu.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="p-3 text-gray-700 font-medium">{menu.name}</td>
+                          <td className="p-3 text-gray-700">{menu.price.toLocaleString()}원</td>
+                          <td className="p-3 text-gray-700">{menu.description || '-'}</td>
+                          <td className="p-3">
+                            <button
+                              onClick={() => handleToggleAvailable(menu.id, menu.is_available)}
+                              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                menu.is_available
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                  : 'bg-red-100 text-red-700 hover:bg-red-200'
+                              }`}
+                            >
+                              {menu.is_available ? '판매중' : '품절'}
+                            </button>
+                          </td>
+                          <td className="p-3">
+                            <button
+                              onClick={() => handleDeleteMenu(menu.id)}
+                              className="text-red-500 hover:text-red-700 font-medium"
+                            >
+                              삭제
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {!selectedRestaurantId && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center text-gray-500">
+                식당을 선택하면 메뉴를 관리할 수 있습니다.
+              </div>
+            )}
           </div>
         )}
       </div>
