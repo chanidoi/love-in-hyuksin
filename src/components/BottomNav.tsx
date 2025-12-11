@@ -74,40 +74,80 @@ export default function BottomNav() {
   }
 
   const navItems = [
-    { icon: '🏠', label: '홈', path: '/' },
-    { icon: '🔍', label: '탐색', path: '/explore' },
-    { icon: '🍽️', label: '점심', path: '/lunch', count: newLunchCount },
-    { icon: '💬', label: '채팅', path: '/chat', count: unreadChatCount },
-    { icon: '💕', label: '매칭', path: '/matching' },
-    { icon: '👤', label: '프로필', path: '/profile' },
+    { 
+      path: '/', 
+      count: 0,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+      )
+    },
+    { 
+      path: '/explore', 
+      count: 0,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      )
+    },
+    { 
+      path: '/lunch', 
+      count: newLunchCount,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+          <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
+        </svg>
+      )
+    },
+    { 
+      path: '/chat', 
+      count: unreadChatCount,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+        </svg>
+      )
+    },
+    { 
+      path: '/matching', 
+      count: 0,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+      )
+    },
+    { 
+      path: '/profile', 
+      count: 0,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+        </svg>
+      )
+    },
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
-      <div className="flex justify-around items-center h-16">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(147,51,234,0.1)] z-50">
+      <div className="flex justify-around items-center py-4 px-6">
         {navItems.map((item) => {
           const isActive = pathname === item.path
           return (
             <Link
               key={item.path}
               href={item.path}
-              className="flex flex-col items-center justify-center flex-1 h-full relative"
+              className="flex items-center justify-center relative"
             >
-              <span className="text-2xl mb-1 relative">
+              <div className={`relative ${isActive ? 'bg-gradient-to-r from-purple-500 to-pink-400 text-white rounded-full p-2' : 'text-gray-400'}`}>
                 {item.icon}
-                {item.count !== undefined && item.count > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {item.count > 99 ? '99+' : item.count}
-                  </span>
+                {item.count > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 rounded-full w-2 h-2"></span>
                 )}
-              </span>
-              <span
-                className={`text-xs ${
-                  isActive ? 'text-pink-500' : 'text-gray-500'
-                }`}
-              >
-                {item.label}
-              </span>
+              </div>
             </Link>
           )
         })}

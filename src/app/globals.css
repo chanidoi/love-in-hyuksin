@@ -3,6 +3,12 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary-purple: #9333ea;
+  --primary-pink: #ec4899;
+  --light-purple: #e9d5ff;
+  --light-pink: #fce7f3;
+  --gradient-start: #c084fc;
+  --gradient-end: #f472b6;
 }
 
 @theme inline {
@@ -23,4 +29,26 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 그라데이션 배경 유틸리티 */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #e9d5ff 0%, #fce7f3 50%, #e9d5ff 100%);
+}
+
+.bg-gradient-button {
+  background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%);
+}
+
+.bg-gradient-card {
+  background: linear-gradient(180deg, #ffffff 0%, #faf5ff 100%);
+}
+
+/* 부드러운 그림자 */
+.shadow-soft {
+  box-shadow: 0 4px 20px rgba(147, 51, 234, 0.15);
+}
+
+.shadow-card {
+  box-shadow: 0 8px 30px rgba(147, 51, 234, 0.12);
 }
