@@ -12,11 +12,32 @@ interface LunchRequest {
   proposed_date: string
   status: string
   restaurant_id?: string
+  requester_menu_id?: string
+  receiver_menu_id?: string
   requester?: {
     nickname: string
+    avatar_url: string | null
+    birth_year: string | null
+    organization: string | null
+    innovation_city: string | null
   }
   receiver?: {
     nickname: string
+    avatar_url: string | null
+    birth_year: string | null
+    organization: string | null
+    innovation_city: string | null
+  }
+  restaurant?: {
+    name: string
+  }
+  requester_menu?: {
+    name: string
+    price: number
+  }
+  receiver_menu?: {
+    name: string
+    price: number
   }
   hasReviewed?: boolean
   canChat?: boolean
@@ -36,7 +57,6 @@ export default function LunchPage() {
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received')
   const [receivedRequests, setReceivedRequests] = useState<LunchRequest[]>([])
   const [sentRequests, setSentRequests] = useState<LunchRequest[]>([])
-  const [acceptedMatches, setAcceptedMatches] = useState<LunchRequest[]>([])
   const [message, setMessage] = useState('')
   const [showAcceptModal, setShowAcceptModal] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<LunchRequest | null>(null)
@@ -52,10 +72,9 @@ export default function LunchPage() {
   useEffect(() => {
     if (user) {
       loadRequests()
-      loadAcceptedMatches()
       loadPaymentStatus()
     }
-  }, [user])
+  }, [user, activeTab])
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -72,163 +91,123 @@ export default function LunchPage() {
   const loadRequests = async () => {
     if (!user) return
 
-    // 받은 제안: 1단계 - lunch_requests 조회 (pending과 accepted 모두)
-    const { data: receivedRequestsData, error: receivedError } = await supabase
+    // 받은 제안
+    const { data: receivedRequestsData } = await supabase
       .from('lunch_requests')
-      .select('id, requester_id, receiver_id, proposed_date, status, restaurant_id')
+      .select('id, requester_id, receiver_id, proposed_date, status, restaurant_id, requester_menu_id, receiver_menu_id')
       .eq('receiver_id', user.id)
-      .in('status', ['pending', 'accepted'])
-      .order('proposed_date', { ascending: true })
-
-    console.log('받은 제안 조회 결과:', receivedRequestsData)
-    console.log('받은 제안 조회 오류:', receivedError)
+      .in('status', ['pending', 'accepted', 'rejected', 'completed'])
+      .order('proposed_date', { ascending: false })
 
     if (receivedRequestsData && receivedRequestsData.length > 0) {
-      // 2단계 - requester_id들로 profiles에서 닉네임 조회
       const requesterIds = receivedRequestsData.map(req => req.requester_id)
-      const { data: requesterProfiles, error: profilesError } = await supabase
+      const restaurantIds = receivedRequestsData
+        .map(req => req.restaurant_id)
+        .filter((id): id is string => id !== null && id !== undefined)
+      
+      const { data: requesterProfiles } = await supabase
         .from('profiles')
-        .select('id, nickname')
+        .select('id, nickname, avatar_url, birth_year, organization, innovation_city')
         .in('id', requesterIds)
 
-      console.log('요청자 프로필 조회 결과:', requesterProfiles)
-      console.log('요청자 프로필 조회 오류:', profilesError)
+      const { data: restaurants } = restaurantIds.length > 0 ? await supabase
+        .from('restaurants')
+        .select('id, name')
+        .in('id', restaurantIds) : { data: [] }
 
-      // 3단계 - 데이터 합치기
+      const { data: allMenus } = await supabase
+        .from('menus')
+        .select('id, restaurant_id, name, price')
+
       const mergedReceived = receivedRequestsData.map(request => {
         const requesterProfile = requesterProfiles?.find(p => p.id === request.requester_id)
+        const restaurant = restaurants?.find(r => r.id === request.restaurant_id)
+        const requesterMenu = allMenus?.find(m => m.id === request.requester_menu_id)
+        const receiverMenu = allMenus?.find(m => m.id === request.receiver_menu_id)
+
         return {
           ...request,
-          requester: requesterProfile ? { nickname: requesterProfile.nickname } : undefined
+          requester: requesterProfile ? {
+            nickname: requesterProfile.nickname,
+            avatar_url: requesterProfile.avatar_url,
+            birth_year: requesterProfile.birth_year,
+            organization: requesterProfile.organization,
+            innovation_city: requesterProfile.innovation_city,
+          } : undefined,
+          restaurant: restaurant ? { name: restaurant.name } : undefined,
+          requester_menu: requesterMenu ? { name: requesterMenu.name, price: requesterMenu.price } : undefined,
+          receiver_menu: receiverMenu ? { name: receiverMenu.name, price: receiverMenu.price } : undefined,
         }
       })
 
-      console.log('합쳐진 받은 제안 데이터:', mergedReceived)
       setReceivedRequests(mergedReceived as any)
     } else {
       setReceivedRequests([])
     }
 
-    // 보낸 제안: 1단계 - lunch_requests 조회
-    const { data: sentRequestsData, error: sentError } = await supabase
+    // 보낸 제안
+    const { data: sentRequestsData } = await supabase
       .from('lunch_requests')
-      .select('id, requester_id, receiver_id, proposed_date, status')
+      .select('id, requester_id, receiver_id, proposed_date, status, restaurant_id, requester_menu_id, receiver_menu_id')
       .eq('requester_id', user.id)
       .order('proposed_date', { ascending: false })
 
-    console.log('보낸 제안 조회 결과:', sentRequestsData)
-    console.log('보낸 제안 조회 오류:', sentError)
-
     if (sentRequestsData && sentRequestsData.length > 0) {
-      // 2단계 - receiver_id들로 profiles에서 닉네임 조회
       const receiverIds = sentRequestsData.map(req => req.receiver_id)
-      const { data: receiverProfiles, error: receiverProfilesError } = await supabase
+      const restaurantIds = sentRequestsData
+        .map(req => req.restaurant_id)
+        .filter((id): id is string => id !== null && id !== undefined)
+
+      const { data: receiverProfiles } = await supabase
         .from('profiles')
-        .select('id, nickname')
+        .select('id, nickname, avatar_url, birth_year, organization, innovation_city')
         .in('id', receiverIds)
 
-      console.log('수신자 프로필 조회 결과:', receiverProfiles)
-      console.log('수신자 프로필 조회 오류:', receiverProfilesError)
+      const { data: restaurants } = restaurantIds.length > 0 ? await supabase
+        .from('restaurants')
+        .select('id, name')
+        .in('id', restaurantIds) : { data: [] }
 
-      // 3단계 - 데이터 합치기
+      const { data: allMenus } = await supabase
+        .from('menus')
+        .select('id, restaurant_id, name, price')
+
       const mergedSent = sentRequestsData.map(request => {
         const receiverProfile = receiverProfiles?.find(p => p.id === request.receiver_id)
+        const restaurant = restaurants?.find(r => r.id === request.restaurant_id)
+        const requesterMenu = allMenus?.find(m => m.id === request.requester_menu_id)
+        const receiverMenu = allMenus?.find(m => m.id === request.receiver_menu_id)
+
         return {
           ...request,
-          receiver: receiverProfile ? { nickname: receiverProfile.nickname } : undefined
+          receiver: receiverProfile ? {
+            nickname: receiverProfile.nickname,
+            avatar_url: receiverProfile.avatar_url,
+            birth_year: receiverProfile.birth_year,
+            organization: receiverProfile.organization,
+            innovation_city: receiverProfile.innovation_city,
+          } : undefined,
+          restaurant: restaurant ? { name: restaurant.name } : undefined,
+          requester_menu: requesterMenu ? { name: requesterMenu.name, price: requesterMenu.price } : undefined,
+          receiver_menu: receiverMenu ? { name: receiverMenu.name, price: receiverMenu.price } : undefined,
         }
       })
 
-      console.log('합쳐진 보낸 제안 데이터:', mergedSent)
       setSentRequests(mergedSent as any)
     } else {
       setSentRequests([])
     }
   }
 
-  const loadAcceptedMatches = async () => {
-    if (!user) return
-
-    // 수락된 약속: 1단계 - lunch_requests 조회
-    const { data: acceptedData, error: acceptedError } = await supabase
-      .from('lunch_requests')
-      .select('id, requester_id, receiver_id, proposed_date, status')
-      .eq('status', 'accepted')
-      .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
-      .order('proposed_date', { ascending: true })
-
-    console.log('수락된 약속 조회 결과:', acceptedData)
-    console.log('수락된 약속 조회 오류:', acceptedError)
-
-    if (acceptedData && acceptedData.length > 0) {
-      // 2단계 - requester_id와 receiver_id들로 profiles에서 닉네임 조회
-      const allUserIds = [
-        ...acceptedData.map(req => req.requester_id),
-        ...acceptedData.map(req => req.receiver_id)
-      ]
-      const uniqueUserIds = Array.from(new Set(allUserIds))
-      
-      const { data: allProfiles, error: allProfilesError } = await supabase
-        .from('profiles')
-        .select('id, nickname')
-        .in('id', uniqueUserIds)
-
-      console.log('모든 프로필 조회 결과:', allProfiles)
-      console.log('모든 프로필 조회 오류:', allProfilesError)
-
-      // 3단계 - reviews 테이블에서 평가 여부 조회
-      const requestIds = acceptedData.map(req => req.id)
-      const { data: reviews, error: reviewsError } = await supabase
-        .from('reviews')
-        .select('lunch_request_id, reviewer_id, want_to_chat')
-        .in('lunch_request_id', requestIds)
-
-      console.log('평가 조회 결과:', reviews)
-      console.log('평가 조회 오류:', reviewsError)
-
-      // 4단계 - 데이터 합치기
-      const mergedAccepted = acceptedData.map(request => {
-        const requesterProfile = allProfiles?.find(p => p.id === request.requester_id)
-        const receiverProfile = allProfiles?.find(p => p.id === request.receiver_id)
-        
-        // 현재 사용자가 평가했는지 확인
-        const userReview = reviews?.find(r => 
-          r.lunch_request_id === request.id && r.reviewer_id === user.id
-        )
-        const hasReviewed = !!userReview
-
-        // 양쪽 모두 평가했는지 확인
-        const allReviews = reviews?.filter(r => r.lunch_request_id === request.id) || []
-        const bothReviewed = allReviews.length === 2
-        
-        // 양쪽 모두 want_to_chat이 true인지 확인
-        const canChat = bothReviewed && allReviews.every(r => r.want_to_chat === true)
-
-        return {
-          ...request,
-          requester: requesterProfile ? { nickname: requesterProfile.nickname } : undefined,
-          receiver: receiverProfile ? { nickname: receiverProfile.nickname } : undefined,
-          hasReviewed,
-          canChat
-        }
-      })
-
-      console.log('합쳐진 수락된 약속 데이터:', mergedAccepted)
-      setAcceptedMatches(mergedAccepted as any)
-    } else {
-      setAcceptedMatches([])
-    }
-  }
-
   const loadPaymentStatus = async () => {
     if (!user) return
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('lunch_payments')
       .select('lunch_request_id')
       .eq('user_id', user.id)
 
-    if (!error && data) {
+    if (data) {
       const paidSet = new Set(data.map(payment => payment.lunch_request_id))
       setPaidRequests(paidSet)
     }
@@ -261,15 +240,8 @@ export default function LunchPage() {
     setShowAcceptModal(true)
     setMessage('')
     
-    // 식당 정보 불러오기
-    const { data: restaurantData } = await supabase
-      .from('restaurants')
-      .select('name')
-      .eq('id', request.restaurant_id)
-      .single()
-    
-    if (restaurantData) {
-      setRestaurantName(restaurantData.name)
+    if (request.restaurant) {
+      setRestaurantName(request.restaurant.name)
     }
     
     await loadMenus(request.restaurant_id)
@@ -305,7 +277,7 @@ export default function LunchPage() {
       setMessage('점심 약속이 수락되었습니다!')
       handleCloseAcceptModal()
       loadRequests()
-      loadAcceptedMatches()
+      loadPaymentStatus()
     }
   }
 
@@ -324,29 +296,18 @@ export default function LunchPage() {
     }
   }
 
-  const getStatusText = (status: string): string => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return '대기중'
+        return <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">대기중</span>
       case 'accepted':
-        return '수락됨'
+        return <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">수락됨</span>
       case 'rejected':
-        return '거절됨'
+        return <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">거절됨</span>
+      case 'completed':
+        return <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">완료</span>
       default:
-        return status
-    }
-  }
-
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'pending':
-        return 'text-yellow-600'
-      case 'accepted':
-        return 'text-green-600'
-      case 'rejected':
-        return 'text-red-600'
-      default:
-        return 'text-gray-600'
+        return <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">{status}</span>
     }
   }
 
@@ -359,141 +320,92 @@ export default function LunchPage() {
     })
   }
 
-  const getOtherPersonNickname = (request: LunchRequest): string => {
-    if (request.requester_id === user?.id) {
-      return request.receiver?.nickname || '알 수 없음'
-    } else {
-      return request.requester?.nickname || '알 수 없음'
-    }
+  const calculateAge = (birthYear: string | null): number | null => {
+    if (!birthYear) return null
+    const currentYear = new Date().getFullYear()
+    return currentYear - parseInt(birthYear)
   }
 
-  const getOtherPersonId = (request: LunchRequest): string => {
+  const getOtherPerson = (request: LunchRequest) => {
     if (request.requester_id === user?.id) {
-      return request.receiver_id
+      return request.receiver
     } else {
-      return request.requester_id
-    }
-  }
-
-  const handleStartChat = async (lunchRequestId: string) => {
-    if (!user) return
-
-    try {
-      // 1. chat_rooms 테이블에서 lunch_request_id로 채팅방 조회
-      const { data: existingRoom, error: searchError } = await supabase
-        .from('chat_rooms')
-        .select('id')
-        .eq('lunch_request_id', lunchRequestId)
-        .maybeSingle()
-
-      console.log('기존 채팅방 조회 결과:', existingRoom)
-      console.log('기존 채팅방 조회 오류:', searchError)
-
-      if (existingRoom) {
-        // 채팅방이 이미 있으면 바로 이동
-        router.push(`/chat/${existingRoom.id}`)
-        return
-      }
-
-      // 2. 채팅방이 없으면 새로 생성
-      // lunch_request에서 상대방 ID 찾기
-      const { data: lunchRequest, error: lunchError } = await supabase
-        .from('lunch_requests')
-        .select('requester_id, receiver_id')
-        .eq('id', lunchRequestId)
-        .single()
-
-      if (lunchError || !lunchRequest) {
-        alert('점심 약속 정보를 찾을 수 없습니다.')
-        return
-      }
-
-      const otherUserId = lunchRequest.requester_id === user.id 
-        ? lunchRequest.receiver_id 
-        : lunchRequest.requester_id
-
-      // user1_id는 항상 현재 사용자, user2_id는 상대방
-      const { data: newRoom, error: createError } = await supabase
-        .from('chat_rooms')
-        .insert({
-          user1_id: user.id,
-          user2_id: otherUserId,
-          lunch_request_id: lunchRequestId,
-        })
-        .select('id')
-        .single()
-
-      console.log('새 채팅방 생성 결과:', newRoom)
-      console.log('새 채팅방 생성 오류:', createError)
-
-      if (createError || !newRoom) {
-        alert('채팅방 생성에 실패했습니다.')
-        return
-      }
-
-      // 3. 채팅방 id로 이동
-      router.push(`/chat/${newRoom.id}`)
-    } catch (error) {
-      console.error('채팅 시작 오류:', error)
-      alert('채팅을 시작하는 중 오류가 발생했습니다.')
+      return request.requester
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-pink-500">로딩 중...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#FDF2F4]">
+        <p className="text-[#F472B6]">로딩 중...</p>
       </div>
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100 py-8 pb-24">
-      <div className="max-w-4xl mx-auto px-4">
-        <h1 className="text-3xl font-bold text-pink-500 mb-6">점심 매칭</h1>
+  const currentRequests = activeTab === 'received' ? receivedRequests : sentRequests
 
-        {/* 내일 점심 등록하기 카드 */}
-        <div className="bg-pink-50 border-2 border-pink-200 rounded-xl p-6 mb-6 shadow-md">
-          <h2 className="text-xl font-bold text-pink-600 mb-2">
-            🍽️ 내일 점심 가능하신가요?
-          </h2>
-          <p className="text-gray-700 mb-4">
-            등록하면 다른 회원과 매칭될 수 있어요
-          </p>
-          <Link
-            href="/lunch/available"
-            className="inline-block bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
-            내일 점심 등록하기
-          </Link>
+  return (
+    <div className="min-h-screen bg-[#FDF2F4] pb-24">
+      {/* 상단 헤더 */}
+      <div 
+        className="pt-12 pb-6 px-4"
+        style={{
+          background: 'linear-gradient(135deg, #F472B6 0%, #ec4899 100%)'
+        }}
+      >
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-2xl font-bold text-white">점심 매칭 🍽️</h1>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 -mt-4">
+        {/* 내일 점심 등록 카드 */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-[#F472B6] flex items-center justify-center flex-shrink-0">
+              <span className="text-3xl">🍽️</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">내일 점심 가능하신가요?</h3>
+              <p className="text-sm text-gray-600 mb-3">등록하면 다른 회원과 매칭될 수 있어요</p>
+              <Link
+                href="/lunch/available"
+                className="inline-block bg-[#F472B6] text-white px-6 py-2 rounded-full font-semibold hover:opacity-90 transition-opacity"
+              >
+                내일 점심 등록하기
+              </Link>
+            </div>
+          </div>
         </div>
 
-        {/* 탭 */}
-        <div className="flex gap-2 mb-6 bg-white rounded-lg p-1 shadow-md">
-          <button
-            onClick={() => setActiveTab('received')}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-              activeTab === 'received'
-                ? 'bg-pink-500 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            받은 제안
-          </button>
-          <button
-            onClick={() => setActiveTab('sent')}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-              activeTab === 'sent'
-                ? 'bg-pink-500 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            보낸 제안
-          </button>
+        {/* 탭 메뉴 */}
+        <div className="bg-gray-100 rounded-xl p-1 mb-4">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setActiveTab('received')}
+              className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+                activeTab === 'received'
+                  ? 'bg-gradient-to-r from-[#F472B6] to-[#ec4899] text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-white/50'
+              }`}
+            >
+              받은 제안
+            </button>
+            <button
+              onClick={() => setActiveTab('sent')}
+              className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+                activeTab === 'sent'
+                  ? 'bg-gradient-to-r from-[#F472B6] to-[#ec4899] text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-white/50'
+              }`}
+            >
+              보낸 제안
+            </button>
+          </div>
         </div>
 
         {message && (
-          <div className={`mb-4 p-3 rounded-lg text-center ${
+          <div className={`mb-4 p-3 rounded-xl text-center ${
             message.includes('오류') || message.includes('거절')
               ? 'bg-red-100 text-red-700'
               : 'bg-green-100 text-green-700'
@@ -502,184 +414,153 @@ export default function LunchPage() {
           </div>
         )}
 
-        {/* 받은 제안 탭 */}
-        {activeTab === 'received' && (
-          <div className="space-y-4">
-            {receivedRequests.length === 0 ? (
-              <div className="bg-white p-8 rounded-lg shadow-md text-center text-gray-500">
-                받은 제안이 없습니다.
-              </div>
-            ) : (
-              receivedRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="bg-white p-6 rounded-lg shadow-md"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                        {request.requester?.nickname || '알 수 없음'}
-                      </h3>
-                      <p className="text-gray-600">
-                        📅 {formatDate(request.proposed_date)}
-                      </p>
+        {/* 제안 카드 목록 */}
+        <div className="space-y-4">
+          {currentRequests.length === 0 ? (
+            <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
+              <p className="text-gray-500">아직 점심 제안이 없습니다</p>
+            </div>
+          ) : (
+            currentRequests.map((request) => {
+              const otherPerson = getOtherPerson(request)
+              const isReceived = activeTab === 'received'
+              const isPending = request.status === 'pending'
+              const isAccepted = request.status === 'accepted'
+              const isPaid = paidRequests.has(request.id)
+
+              return (
+                <div key={request.id} className="bg-white rounded-2xl p-4 shadow-sm">
+                  {/* 프로필 정보 */}
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                      {otherPerson?.avatar_url ? (
+                        <img
+                          src={otherPerson.avatar_url}
+                          alt={otherPerson.nickname}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOWNhM2FmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+RiDwvdGV4dD48L3N2Zz4='
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
+                          <span className="text-2xl">👤</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-bold text-gray-900 truncate">
+                          {otherPerson?.nickname || '알 수 없음'}
+                        </h3>
+                        {otherPerson?.birth_year && (
+                          <span className="text-gray-500 text-sm">
+                            {calculateAge(otherPerson.birth_year)}세
+                          </span>
+                        )}
+                        {getStatusBadge(request.status)}
+                      </div>
+                      {otherPerson?.organization && (
+                        <p className="text-sm text-gray-600 truncate">{otherPerson.organization}</p>
+                      )}
+                      {otherPerson?.innovation_city && (
+                        <p className="text-sm text-gray-500">📍 {otherPerson.innovation_city}</p>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-3">
-                    {request.status === 'pending' ? (
+
+                  {/* 날짜, 식당, 메뉴 정보 */}
+                  <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">📅</span>
+                      <span className="text-gray-700">{formatDate(request.proposed_date)}</span>
+                    </div>
+                    {request.restaurant && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-500">🍽️</span>
+                        <span className="text-gray-700">{request.restaurant.name}</span>
+                      </div>
+                    )}
+                    {isReceived && request.requester_menu && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-500">상대 메뉴:</span>
+                        <span className="text-gray-700 font-medium">
+                          {request.requester_menu.name} (₩{request.requester_menu.price.toLocaleString()})
+                        </span>
+                      </div>
+                    )}
+                    {!isReceived && request.requester_menu && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-500">내 메뉴:</span>
+                        <span className="text-gray-700 font-medium">
+                          {request.requester_menu.name} (₩{request.requester_menu.price.toLocaleString()})
+                        </span>
+                      </div>
+                    )}
+                    {isReceived && request.receiver_menu && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-500">내 메뉴:</span>
+                        <span className="text-gray-700 font-medium">
+                          {request.receiver_menu.name} (₩{request.receiver_menu.price.toLocaleString()})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 액션 버튼 */}
+                  <div className="flex gap-2">
+                    {isPending && isReceived && (
                       <>
                         <button
-                          onClick={() => handleAccept(request)}
-                          className="flex-1 bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 font-medium"
-                        >
-                          수락
-                        </button>
-                        <button
                           onClick={() => handleReject(request.id)}
-                          className="flex-1 bg-gray-200 text-gray-700 p-3 rounded-lg hover:bg-gray-300 font-medium"
+                          className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
                         >
                           거절
                         </button>
+                        <button
+                          onClick={() => handleAccept(request)}
+                          className="flex-1 bg-[#F472B6] text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity"
+                        >
+                          수락
+                        </button>
                       </>
-                    ) : request.status === 'accepted' ? (
-                      paidRequests.has(request.id) ? (
-                        <div className="flex-1 text-center text-green-600 font-medium py-3">
-                          결제 완료
-                        </div>
-                      ) : (
-                        <Link
-                          href={`/payment/${request.id}`}
-                          className="flex-1 bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 font-medium text-center"
-                        >
-                          결제하기
-                        </Link>
-                      )
-                    ) : null}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* 보낸 제안 탭 */}
-        {activeTab === 'sent' && (
-          <div className="space-y-4">
-            {sentRequests.length === 0 ? (
-              <div className="bg-white p-8 rounded-lg shadow-md text-center text-gray-500">
-                보낸 제안이 없습니다.
-              </div>
-            ) : (
-              sentRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="bg-white p-6 rounded-lg shadow-md"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                        {request.receiver?.nickname || '알 수 없음'}
-                      </h3>
-                      <p className="text-gray-600 mb-1">
-                        📅 {formatDate(request.proposed_date)}
-                      </p>
-                      <p className={`font-medium ${getStatusColor(request.status)}`}>
-                        상태: {getStatusText(request.status)}
-                      </p>
-                    </div>
-                  </div>
-                  {request.status === 'accepted' && (
-                    <div className="flex gap-3">
-                      {paidRequests.has(request.id) ? (
-                        <div className="flex-1 text-center text-green-600 font-medium py-3">
-                          결제 완료
-                        </div>
-                      ) : (
-                        <Link
-                          href={`/payment/${request.id}`}
-                          className="flex-1 bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 font-medium text-center"
-                        >
-                          결제하기
-                        </Link>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* 매칭된 점심 약속 목록 */}
-        {acceptedMatches.length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold text-pink-500 mb-4">매칭된 점심 약속</h2>
-            <div className="space-y-4">
-              {acceptedMatches.map((match) => (
-                <div
-                  key={match.id}
-                  className="bg-white p-6 rounded-lg shadow-md border-2 border-pink-200"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                        {getOtherPersonNickname(match)}
-                      </h3>
-                      <p className="text-gray-600">
-                        📅 {formatDate(match.proposed_date)}
-                      </p>
-                    </div>
-                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                      수락됨
-                    </span>
-                  </div>
-
-                  {/* 채팅 가능 표시 */}
-                  {match.canChat && (
-                    <div className="mb-4 p-3 bg-pink-50 border border-pink-200 rounded-lg">
-                      <p className="text-pink-600 font-semibold mb-2">💕 채팅 가능!</p>
-                      <button
-                        onClick={() => handleStartChat(match.id)}
-                        className="w-full bg-pink-500 text-white p-2 rounded-lg hover:bg-pink-600 font-medium"
-                      >
-                        채팅하기
-                      </button>
-                    </div>
-                  )}
-
-                  {/* 평가하기 버튼 */}
-                  <div className="flex gap-3">
-                    {match.hasReviewed ? (
-                      <button
-                        disabled
-                        className="flex-1 bg-gray-200 text-gray-500 p-3 rounded-lg cursor-not-allowed font-medium"
-                      >
-                        평가 완료
-                      </button>
-                    ) : (
+                    )}
+                    {isAccepted && !isPaid && (
                       <Link
-                        href={`/review/${match.id}`}
-                        className="flex-1 bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 font-medium text-center"
+                        href={`/payment/${request.id}`}
+                        className="flex-1 bg-green-500 text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity text-center"
+                      >
+                        결제하기
+                      </Link>
+                    )}
+                    {isAccepted && isPaid && (
+                      <Link
+                        href={`/review/${request.id}`}
+                        className="flex-1 bg-blue-500 text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity text-center"
                       >
                         평가하기
                       </Link>
                     )}
+                    {request.status === 'rejected' && (
+                      <div className="flex-1 text-center text-gray-500 py-3">
+                        거절됨
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              )
+            })
+          )}
+        </div>
       </div>
 
       {/* 수락 모달 */}
       {showAcceptModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-pink-500 mb-4">점심 수락</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">점심 수락</h2>
             
-            {/* 신청자 정보 */}
-            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+            <div className="mb-4 p-4 bg-gray-50 rounded-xl">
               <p className="text-sm text-gray-600 mb-1">신청자</p>
               <p className="font-semibold text-gray-800">
                 {selectedRequest.requester?.nickname || '알 수 없음'}
@@ -694,21 +575,20 @@ export default function LunchPage() {
               )}
             </div>
 
-            {/* 메뉴 선택 */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 메뉴 선택
               </label>
               <p className="text-xs text-gray-500 mb-2">내가 먹을 메뉴를 선택하세요</p>
               {menus.length === 0 ? (
-                <div className="w-full p-3 border rounded-lg bg-gray-50 text-gray-500 text-center">
+                <div className="w-full p-3 border rounded-xl bg-gray-50 text-gray-500 text-center">
                   등록된 메뉴가 없습니다
                 </div>
               ) : (
                 <select
                   value={selectedMenuId}
                   onChange={(e) => setSelectedMenuId(e.target.value)}
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700"
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700"
                 >
                   <option value="">메뉴를 선택하세요</option>
                   {menus.map((menu) => (
@@ -720,17 +600,16 @@ export default function LunchPage() {
               )}
             </div>
 
-            {/* 선택한 메뉴 가격 표시 */}
             {selectedMenuId && (
-              <div className="mb-4 p-3 bg-pink-50 border border-pink-200 rounded-lg">
-                <p className="text-sm font-medium text-pink-600">
+              <div className="mb-4 p-3 bg-[#FDF2F4] border border-[#F472B6]/20 rounded-xl">
+                <p className="text-sm font-medium text-[#F472B6]">
                   선택한 메뉴: {menus.find(m => m.id === selectedMenuId)?.name} (₩{menus.find(m => m.id === selectedMenuId)?.price.toLocaleString()})
                 </p>
               </div>
             )}
 
             {message && (
-              <p className={`mb-4 text-center ${
+              <p className={`mb-4 text-center text-sm ${
                 message.includes('오류') ? 'text-red-500' : 'text-green-500'
               }`}>
                 {message}
@@ -740,14 +619,14 @@ export default function LunchPage() {
             <div className="flex gap-3">
               <button
                 onClick={handleCloseAcceptModal}
-                className="flex-1 bg-gray-200 text-gray-700 p-3 rounded-lg hover:bg-gray-300 font-medium"
+                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
               >
                 취소
               </button>
               <button
                 onClick={handleConfirmAccept}
                 disabled={!selectedMenuId}
-                className="flex-1 bg-pink-500 text-white p-3 rounded-lg hover:bg-pink-600 disabled:bg-gray-400 font-medium"
+                className="flex-1 bg-[#F472B6] text-white py-3 rounded-xl font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 수락하기
               </button>
@@ -758,4 +637,3 @@ export default function LunchPage() {
     </div>
   )
 }
-

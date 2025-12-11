@@ -5,14 +5,24 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+interface Profile {
+  id: string
+  nickname: string
+  gender: string
+  birth_year: string
+  organization: string
+  innovation_city: string
+}
+
 export default function Home() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [todayLunch, setTodayLunch] = useState<any>(null)
   const [newProposals, setNewProposals] = useState(0)
   const [unreadMessages, setUnreadMessages] = useState(0)
+  const [recommendedProfiles, setRecommendedProfiles] = useState<Profile[]>([])
 
   useEffect(() => {
     checkUser()
@@ -24,6 +34,7 @@ export default function Home() {
       loadTodayLunch()
       loadNewProposals()
       loadUnreadMessages()
+      loadRecommendedProfiles()
     }
   }, [user])
 
@@ -38,12 +49,12 @@ export default function Home() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('nickname')
+      .select('nickname, gender, birth_year, organization, innovation_city')
       .eq('id', user.id)
       .single()
 
     if (data) {
-      setProfile(data)
+      setProfile(data as Profile)
     }
   }
 
@@ -89,7 +100,6 @@ export default function Home() {
   const loadUnreadMessages = async () => {
     if (!user) return
 
-    // 현재 사용자가 참여한 채팅방 목록 조회
     const { data: chatRooms, error: chatRoomsError } = await supabase
       .from('chat_rooms')
       .select('id')
@@ -102,7 +112,6 @@ export default function Home() {
 
     const chatRoomIds = chatRooms.map(room => room.id)
 
-    // 읽지 않은 메시지 개수 조회
     const { data: messages, error: messagesError } = await supabase
       .from('messages')
       .select('id')
@@ -115,6 +124,31 @@ export default function Home() {
     }
   }
 
+  const loadRecommendedProfiles = async () => {
+    if (!user || !profile) return
+
+    // 현재 사용자와 반대 성별의 프로필 추천 (최대 10개)
+    const oppositeGender = profile.gender === 'male' ? 'female' : 'male'
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, nickname, gender, birth_year, organization, innovation_city')
+      .eq('gender', oppositeGender)
+      .neq('id', user.id)
+      .not('nickname', 'is', null)
+      .limit(10)
+
+    if (data) {
+      setRecommendedProfiles(data as Profile[])
+    }
+  }
+
+  const calculateAge = (birthYear: string): number => {
+    if (!birthYear) return 0
+    const currentYear = new Date().getFullYear()
+    return currentYear - parseInt(birthYear)
+  }
+
   const getOtherPersonNickname = (lunch: any): string => {
     if (lunch.requester_id === user?.id) {
       return lunch.receiver?.nickname || '알 수 없음'
@@ -125,8 +159,8 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-pink-500">로딩 중...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#FDF2F4]">
+        <p className="text-[#F472B6]">로딩 중...</p>
       </div>
     )
   }
@@ -134,51 +168,29 @@ export default function Home() {
   // 로그인 안 된 상태
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-100 via-pink-50 to-white flex items-center justify-center pb-24">
-        <div className="max-w-md mx-auto px-4 w-full">
-          {/* 상단 원형 프로필 이미지 자리 */}
-          <div className="flex justify-center mb-8">
-            <div className="w-24 h-24 rounded-full border-4 border-purple-400 bg-white flex items-center justify-center">
-              <span className="text-4xl">💕</span>
-            </div>
-          </div>
-
-          {/* 중앙 원형 디자인 */}
-          <div className="flex justify-center mb-8">
-            <div className="relative w-64 h-64">
-              {/* 보라색 그라데이션 링 */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 p-1">
-                <div className="w-full h-full rounded-full bg-gradient-to-b from-purple-100 via-pink-50 to-white"></div>
-              </div>
-            </div>
-          </div>
-
-          {/* 슬로건 */}
-          <div className="text-center mb-12">
-            <p className="text-2xl font-medium mb-2">
-              <span className="text-purple-600">러인혁에서</span>
-            </p>
-            <p className="text-2xl font-medium text-gray-900">
-              당신의 인연을 찾아보세요
-            </p>
+      <div className="min-h-screen bg-[#FDF2F4] flex items-center justify-center pb-24">
+        <div className="max-w-md mx-auto px-4 w-full text-center">
+          {/* 로고 */}
+          <div className="mb-8">
+            <div className="text-6xl mb-4">💕</div>
+            <h1 className="text-4xl font-bold text-[#F472B6] mb-2">러인혁</h1>
+            <p className="text-lg text-gray-600">혁신도시 공공기관의 설레는 만남</p>
           </div>
 
           {/* 버튼 */}
           <div className="flex flex-col gap-4 max-w-sm mx-auto">
             <Link
               href="/login"
-              className="w-full bg-gray-900 text-white p-4 rounded-2xl hover:bg-gray-800 font-medium text-lg text-center shadow-soft transition-colors"
+              className="w-full bg-[#F472B6] text-white p-4 rounded-2xl hover:opacity-90 font-medium text-lg text-center shadow-card transition-opacity"
             >
               로그인
             </Link>
-            <div className="text-center">
-              <Link
-                href="/signup"
-                className="text-purple-600 hover:text-purple-700 font-medium underline"
-              >
-                회원가입
-              </Link>
-            </div>
+            <Link
+              href="/signup"
+              className="w-full bg-white text-[#F472B6] border-2 border-[#F472B6] p-4 rounded-2xl hover:bg-[#FDF2F4] font-medium text-lg text-center shadow-card transition-colors"
+            >
+              회원가입
+            </Link>
           </div>
         </div>
       </div>
@@ -187,95 +199,135 @@ export default function Home() {
 
   // 로그인 된 상태
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-100 via-pink-50 to-white py-8 pb-24">
+    <div className="min-h-screen bg-[#FDF2F4] py-6 pb-24">
       <div className="max-w-2xl mx-auto px-4">
-        {/* 환영 메시지 */}
-        <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
-          <h2 className="text-2xl font-bold text-purple-600 mb-2">
-            안녕하세요, {profile?.nickname || '회원'}님! 💕
-          </h2>
-          <p className="text-gray-600">오늘도 좋은 만남이 있기를 바랍니다</p>
+        {/* 상단 인사말 + 프로필 */}
+        <div className="bg-white rounded-2xl shadow-card p-6 mb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm mb-1">안녕하세요</p>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {profile?.nickname || '회원'}님 💕
+              </h2>
+            </div>
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#F472B6] to-[#ec4899] flex items-center justify-center text-white text-2xl font-bold">
+              {profile?.nickname?.charAt(0) || 'U'}
+            </div>
+          </div>
         </div>
 
-        {/* 새 점심 제안 알림 배너 */}
-        {newProposals > 0 && (
-          <div className="bg-pink-100 border border-pink-300 rounded-2xl p-4 mb-4 shadow-soft">
-            <div className="flex items-center justify-between">
-              <p className="text-gray-800 font-medium">
-                🍽️ 새로운 점심 제안이 {newProposals}건 있습니다!
-              </p>
+        {/* 알림 카드 */}
+        {(newProposals > 0 || unreadMessages > 0) && (
+          <div className="mb-4 space-y-2">
+            {newProposals > 0 && (
               <Link
                 href="/lunch"
-                className="bg-pink-500 text-white px-4 py-2 rounded-xl hover:bg-pink-600 font-medium transition-colors"
+                className="block bg-gradient-notification text-white rounded-2xl p-4 shadow-card"
               >
-                확인하기
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                      <span className="text-xl">🍽️</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold">새로운 점심 제안</p>
+                      <p className="text-sm text-white/90">{newProposals}건의 제안이 있습니다</p>
+                    </div>
+                  </div>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
               </Link>
-            </div>
-          </div>
-        )}
-
-        {/* 읽지 않은 메시지 알림 배너 */}
-        {unreadMessages > 0 && (
-          <div className="bg-blue-100 border border-blue-300 rounded-2xl p-4 mb-4 shadow-soft">
-            <div className="flex items-center justify-between">
-              <p className="text-gray-800 font-medium">
-                💬 읽지 않은 메시지가 {unreadMessages}건 있습니다!
-              </p>
+            )}
+            {unreadMessages > 0 && (
               <Link
                 href="/chat"
-                className="bg-blue-500 text-white px-4 py-2 rounded-xl hover:bg-blue-600 font-medium transition-colors"
+                className="block bg-gradient-notification text-white rounded-2xl p-4 shadow-card"
               >
-                확인하기
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                      <span className="text-xl">💬</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold">읽지 않은 메시지</p>
+                      <p className="text-sm text-white/90">{unreadMessages}개의 메시지가 있습니다</p>
+                    </div>
+                  </div>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
               </Link>
+            )}
+          </div>
+        )}
+
+        {/* 오늘의 추천 */}
+        {recommendedProfiles.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-3 px-1">오늘의 추천</h3>
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+              {recommendedProfiles.map((recProfile) => (
+                <Link
+                  key={recProfile.id}
+                  href={`/explore/${recProfile.id}`}
+                  className="flex-shrink-0 bg-white rounded-2xl shadow-card p-4 w-32 hover:shadow-lg transition-shadow"
+                >
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#F472B6] to-[#ec4899] mx-auto mb-3 flex items-center justify-center text-white text-2xl font-bold">
+                    {recProfile.nickname?.charAt(0) || 'U'}
+                  </div>
+                  <p className="text-center font-semibold text-gray-900 text-sm mb-1">
+                    {recProfile.nickname}
+                  </p>
+                  {recProfile.birth_year && (
+                    <p className="text-center text-xs text-gray-500 mb-1">
+                      {calculateAge(recProfile.birth_year)}세
+                    </p>
+                  )}
+                  {recProfile.organization && (
+                    <p className="text-center text-xs text-gray-400 truncate">
+                      {recProfile.organization}
+                    </p>
+                  )}
+                </Link>
+              ))}
             </div>
           </div>
         )}
 
-        {/* 오늘의 점심 약속 */}
-        {todayLunch && (
-          <div className="bg-gradient-to-r from-pink-100 to-pink-50 border-2 border-pink-300 rounded-2xl shadow-card p-6 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl">🍽️</span>
-              <h3 className="text-xl font-bold text-pink-600">오늘의 점심 약속</h3>
-            </div>
-            <p className="text-gray-700 text-lg">
-              <span className="font-semibold">{getOtherPersonNickname(todayLunch)}</span>님과 점심 약속이 있습니다!
-            </p>
-          </div>
-        )}
-
-        {/* 빠른 메뉴 */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        {/* 바로가기 */}
+        <div className="grid grid-cols-2 gap-4">
           <Link
             href="/explore"
-            className="bg-white rounded-2xl shadow-card p-4 text-center hover:shadow-soft transition-shadow"
+            className="bg-white rounded-2xl shadow-card p-6 text-center hover:shadow-lg transition-shadow"
           >
-            <div className="text-3xl mb-2">🔍</div>
-            <p className="font-semibold text-gray-800 text-sm">회원 탐색</p>
+            <div className="text-4xl mb-3">🔍</div>
+            <p className="font-semibold text-gray-900">회원 탐색</p>
           </Link>
           <Link
             href="/lunch"
-            className="bg-white rounded-2xl shadow-card p-4 text-center hover:shadow-soft transition-shadow"
+            className="bg-white rounded-2xl shadow-card p-6 text-center hover:shadow-lg transition-shadow"
           >
-            <div className="text-3xl mb-2">🍽️</div>
-            <p className="font-semibold text-gray-800 text-sm">점심 현황</p>
+            <div className="text-4xl mb-3">🍽️</div>
+            <p className="font-semibold text-gray-900">점심 현황</p>
           </Link>
           <Link
             href="/chat"
-            className="bg-white rounded-2xl shadow-card p-4 text-center hover:shadow-soft transition-shadow"
+            className="bg-white rounded-2xl shadow-card p-6 text-center hover:shadow-lg transition-shadow"
           >
-            <div className="text-3xl mb-2">💬</div>
-            <p className="font-semibold text-gray-800 text-sm">채팅</p>
+            <div className="text-4xl mb-3">💬</div>
+            <p className="font-semibold text-gray-900">채팅</p>
+          </Link>
+          <Link
+            href="/profile"
+            className="bg-white rounded-2xl shadow-card p-6 text-center hover:shadow-lg transition-shadow"
+          >
+            <div className="text-4xl mb-3">👤</div>
+            <p className="font-semibold text-gray-900">프로필</p>
           </Link>
         </div>
-
-        {/* 회원 탐색하기 버튼 (큰 버튼) */}
-        <Link
-          href="/explore"
-          className="block w-full bg-gradient-button text-white p-4 rounded-2xl hover:opacity-90 font-medium text-lg text-center shadow-card transition-opacity"
-        >
-          회원 탐색하기
-        </Link>
       </div>
     </div>
   )
