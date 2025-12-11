@@ -50,7 +50,7 @@ export default function PaymentPage() {
 
   useEffect(() => {
     if (user && params.id) {
-      loadLunchRequest(params.id as string)
+      loadRequestInfo(params.id as string)
     }
   }, [user, params.id])
 
@@ -66,35 +66,55 @@ export default function PaymentPage() {
     setLoading(false)
   }
 
-  const loadLunchRequest = async (requestId: string) => {
-    // lunch_request 정보 불러오기
-    const { data: requestData, error: requestError } = await supabase
+  const loadRequestInfo = async (id: string) => {
+    console.log('loadRequestInfo 시작 - requestId:', id)
+    console.log('현재 사용자:', user?.id)
+
+    // lunch_request 정보 불러오기 (id로만 조회)
+    const { data, error } = await supabase
       .from('lunch_requests')
-      .select('id, requester_id, receiver_id, proposed_date, restaurant_id, requester_menu_id, receiver_menu_id')
-      .eq('id', requestId)
+      .select('*')
+      .eq('id', id)
       .single()
 
-    if (requestError || !requestData) {
+    console.log('lunch_requests 조회 결과:', data)
+    console.log('lunch_requests 조회 오류:', error)
+
+    if (error || !data) {
+      console.error('점심 요청 정보를 찾을 수 없습니다:', error)
       setMessage('점심 요청 정보를 찾을 수 없습니다.')
       setLoading(false)
       return
     }
 
+    // 권한 체크: 현재 사용자가 requester 또는 receiver인지 확인
+    if (!user || (data.requester_id !== user.id && data.receiver_id !== user.id)) {
+      console.error('권한이 없습니다. requester_id:', data.requester_id, 'receiver_id:', data.receiver_id, 'user_id:', user?.id)
+      setMessage('이 페이지에 접근할 권한이 없습니다.')
+      setLoading(false)
+      return
+    }
+
+    console.log('권한 체크 통과')
+
     // requester와 receiver 프로필 불러오기
     const { data: requesterProfile } = await supabase
       .from('profiles')
       .select('nickname')
-      .eq('id', requestData.requester_id)
+      .eq('id', data.requester_id)
       .single()
 
     const { data: receiverProfile } = await supabase
       .from('profiles')
       .select('nickname')
-      .eq('id', requestData.receiver_id)
+      .eq('id', data.receiver_id)
       .single()
 
+    console.log('requester 프로필:', requesterProfile)
+    console.log('receiver 프로필:', receiverProfile)
+
     const requestWithProfiles: LunchRequest = {
-      ...requestData,
+      ...data,
       requester: requesterProfile ? { nickname: requesterProfile.nickname } : undefined,
       receiver: receiverProfile ? { nickname: receiverProfile.nickname } : undefined,
     }
@@ -102,19 +122,25 @@ export default function PaymentPage() {
     setLunchRequest(requestWithProfiles)
 
     // 식당 정보 불러오기
-    const { data: restaurantData } = await supabase
-      .from('restaurants')
-      .select('id, name')
-      .eq('id', requestData.restaurant_id)
-      .single()
+    if (data.restaurant_id) {
+      const { data: restaurantData } = await supabase
+        .from('restaurants')
+        .select('id, name')
+        .eq('id', data.restaurant_id)
+        .single()
 
-    if (restaurantData) {
-      setRestaurant(restaurantData)
+      console.log('식당 정보:', restaurantData)
+
+      if (restaurantData) {
+        setRestaurant(restaurantData)
+      }
     }
 
-    // 내 메뉴 정보 불러오기
-    const isRequester = requestData.requester_id === user?.id
-    const menuId = isRequester ? requestData.requester_menu_id : requestData.receiver_menu_id
+    // 내 메뉴 정보 불러오기 (데이터 가져온 후에 판단)
+    const isRequester = data.requester_id === user.id
+    const menuId = isRequester ? data.requester_menu_id : data.receiver_menu_id
+
+    console.log('isRequester:', isRequester, 'menuId:', menuId)
 
     if (menuId) {
       const { data: menuData } = await supabase
@@ -122,6 +148,8 @@ export default function PaymentPage() {
         .select('id, name, price')
         .eq('id', menuId)
         .single()
+
+      console.log('메뉴 정보:', menuData)
 
       if (menuData) {
         setMyMenu(menuData)
