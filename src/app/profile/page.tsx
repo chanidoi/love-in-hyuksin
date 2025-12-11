@@ -7,6 +7,44 @@ import Link from 'next/link'
 
 const INTERESTS = ['카페', '맛집탐방', '영화', '독서', '운동', '여행', '음악', '게임', '요리']
 
+const organizationsByCity: { [key: string]: string[] } = {
+  '경남(진주)': [
+    '경상국립대학교병원',
+    '국방기술품질원',
+    '국토안전관리원',
+    '부산대학교치과병원',
+    '주택관리공단(주)',
+    '중소벤처기업진흥공단',
+    '한국남동발전(주)',
+    '한국산업기술시험원',
+    '한국세라믹기술원',
+    '한국승강기안전공단',
+    '한국저작권위원회',
+    '한국토지주택공사',
+    '국방기술진흥연구소'
+  ],
+  '경북(김천)': [
+    '국립낙동강생물자원관',
+    '국립울진해양과학관',
+    '대한법률구조공단',
+    '한국교통안전공단',
+    '한국도로공사',
+    '한국법무보호복지공단',
+    '한국수력원자력(주)',
+    '한국원자력환경공단',
+    '한국전력기술주식회사',
+    '한국한의약진흥원'
+  ],
+  '부산': [],
+  '대구': [],
+  '광주·전남(나주)': [],
+  '울산': [],
+  '강원(원주)': [],
+  '충북(진천·음성)': [],
+  '전북(전주)': [],
+  '제주': []
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
@@ -27,6 +65,8 @@ export default function ProfilePage() {
   const [position, setPosition] = useState('')
   const [field, setField] = useState('')
   const [interests, setInterests] = useState<string[]>([])
+  const [isCustomOrganization, setIsCustomOrganization] = useState(false)
+  const [customOrganization, setCustomOrganization] = useState('')
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -56,7 +96,6 @@ export default function ProfilePage() {
       setNickname(profile.nickname || '')
       setGender(profile.gender || '')
       setBirthYear(profile.birth_year || '')
-      setOrganization(profile.organization || '')
       setCity(profile.innovation_city || '')
       setPosition(profile.job_level || '')
       setField(profile.job_field || '')
@@ -64,6 +103,20 @@ export default function ProfilePage() {
       setInterests(profile.interests || [])
       if (profile.gender) {
         setSelectedGender(profile.gender as 'male' | 'female')
+      }
+      
+      // 소속기관 처리
+      const savedOrg = profile.organization || ''
+      if (savedOrg) {
+        const cityOrgs = organizationsByCity[profile.innovation_city || ''] || []
+        if (cityOrgs.includes(savedOrg)) {
+          setOrganization(savedOrg)
+          setIsCustomOrganization(false)
+        } else {
+          setOrganization('기타')
+          setIsCustomOrganization(true)
+          setCustomOrganization(savedOrg)
+        }
       }
     }
 
@@ -111,6 +164,9 @@ export default function ProfilePage() {
     setSaving(true)
     setMessage('')
 
+    // 소속기관 저장 값 결정
+    const organizationToSave = isCustomOrganization ? customOrganization : organization
+
     const { error } = await supabase
       .from('profiles')
       .upsert({
@@ -119,7 +175,7 @@ export default function ProfilePage() {
         nickname,
         gender,
         birth_year: birthYear,
-        organization,
+        organization: organizationToSave,
         innovation_city: city,
         job_level: position,
         job_field: field,
@@ -276,35 +332,76 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">소속기관</label>
-              <input
-                type="text"
-                value={organization}
-                onChange={(e) => setOrganization(e.target.value)}
-                placeholder="소속기관을 입력하세요"
-                className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700 placeholder-gray-400"
-              />
-            </div>
-
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">혁신도시</label>
               <select
                 value={city}
-                onChange={(e) => setCity(e.target.value)}
+                onChange={(e) => {
+                  setCity(e.target.value)
+                  // 혁신도시 변경 시 소속기관 초기화
+                  setOrganization('')
+                  setIsCustomOrganization(false)
+                  setCustomOrganization('')
+                }}
                 className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700"
               >
                 <option value="">선택하세요</option>
                 <option value="부산">부산</option>
                 <option value="대구">대구</option>
-                <option value="광주">광주</option>
+                <option value="광주·전남(나주)">광주·전남(나주)</option>
                 <option value="울산">울산</option>
-                <option value="강원">강원</option>
-                <option value="충북">충북</option>
-                <option value="전북">전북</option>
-                <option value="경북">경북</option>
+                <option value="강원(원주)">강원(원주)</option>
+                <option value="충북(진천·음성)">충북(진천·음성)</option>
+                <option value="전북(전주)">전북(전주)</option>
+                <option value="경북(김천)">경북(김천)</option>
                 <option value="경남(진주)">경남(진주)</option>
                 <option value="제주">제주</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">소속기관</label>
+              {!city ? (
+                <input
+                  type="text"
+                  disabled
+                  placeholder="먼저 혁신도시를 선택해주세요"
+                  className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-400 cursor-not-allowed"
+                />
+              ) : (
+                <>
+                  <select
+                    value={organization}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setOrganization(value)
+                      if (value === '기타') {
+                        setIsCustomOrganization(true)
+                      } else {
+                        setIsCustomOrganization(false)
+                        setCustomOrganization('')
+                      }
+                    }}
+                    className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700"
+                  >
+                    <option value="">소속기관을 선택해주세요</option>
+                    {(organizationsByCity[city] || []).map((org) => (
+                      <option key={org} value={org}>
+                        {org}
+                      </option>
+                    ))}
+                    <option value="기타">기타 (직접 입력)</option>
+                  </select>
+                  {isCustomOrganization && (
+                    <input
+                      type="text"
+                      value={customOrganization}
+                      onChange={(e) => setCustomOrganization(e.target.value)}
+                      placeholder="소속기관을 직접 입력하세요"
+                      className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700 placeholder-gray-400 mt-2"
+                    />
+                  )}
+                </>
+              )}
             </div>
 
             <div>
