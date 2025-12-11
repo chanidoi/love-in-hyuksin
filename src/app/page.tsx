@@ -50,7 +50,7 @@ export default function Home() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('nickname, gender, birth_year, organization, innovation_city')
+      .select('nickname, gender, birth_year, organization, innovation_city, avatar_url')
       .eq('id', user.id)
       .single()
 
@@ -211,8 +211,21 @@ export default function Home() {
                 {profile?.nickname || '회원'}님 💕
               </h2>
             </div>
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#F472B6] to-[#ec4899] flex items-center justify-center text-white text-2xl font-bold">
-              {profile?.nickname?.charAt(0) || 'U'}
+            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-pink-200 flex-shrink-0">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="프로필"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOWNhM2FmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+RiDwvdGV4dD48L3N2Zz4='
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-pink-400 to-purple-400 flex items-center justify-center text-white font-bold text-lg">
+                  {profile?.nickname?.charAt(0) || '?'}
+                </div>
+              )}
             </div>
           </div>
         </div>
