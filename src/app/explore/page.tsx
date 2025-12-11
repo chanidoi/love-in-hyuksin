@@ -28,7 +28,7 @@ export default function ExplorePage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   
   const [showFilters, setShowFilters] = useState(false)
-  const [genderFilter, setGenderFilter] = useState<'전체' | '남성' | '여성'>('전체')
+  const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all')
   const [cityFilter, setCityFilter] = useState('전체')
 
   useEffect(() => {
@@ -36,10 +36,10 @@ export default function ExplorePage() {
   }, [])
 
   useEffect(() => {
-    if (currentUserProfile) {
+    if (user) {
       loadProfiles()
     }
-  }, [currentUserProfile, genderFilter, cityFilter])
+  }, [user, genderFilter, cityFilter])
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -66,22 +66,18 @@ export default function ExplorePage() {
   }
 
   const loadProfiles = async () => {
-    if (!currentUserProfile) return
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) return
 
     let query = supabase
       .from('profiles')
       .select('id, nickname, gender, birth_year, organization, innovation_city, job_level, job_field, avatar_url, interests, bio')
-      .neq('id', user.id)
+      .neq('id', currentUser.id)
       .not('nickname', 'is', null)
 
-    // 기본: 이성만 표시
-    if (genderFilter === '전체') {
-      const oppositeGender = currentUserProfile.gender === 'male' ? 'female' : 'male'
-      query = query.eq('gender', oppositeGender)
-    } else if (genderFilter === '남성') {
-      query = query.eq('gender', 'male')
-    } else if (genderFilter === '여성') {
-      query = query.eq('gender', 'female')
+    // 성별 필터가 선택된 경우에만 적용
+    if (genderFilter && genderFilter !== 'all') {
+      query = query.eq('gender', genderFilter)
     }
 
     // 혁신도시 필터
@@ -90,9 +86,14 @@ export default function ExplorePage() {
     }
 
     const { data, error } = await query
+    
+    console.log('Loaded profiles:', data, 'Error:', error)
+    console.log('Gender filter:', genderFilter, 'City filter:', cityFilter)
+    console.log('Profiles count:', data?.length || 0)
 
     if (error) {
       console.error('Error loading profiles:', error)
+      setProfiles([])
     } else {
       // 랜덤하게 섞기
       const shuffled = (data || []).sort(() => Math.random() - 0.5)
@@ -167,9 +168,9 @@ export default function ExplorePage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setGenderFilter('전체')}
+                    onClick={() => setGenderFilter('all')}
                     className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
-                      genderFilter === '전체'
+                      genderFilter === 'all'
                         ? 'bg-[#F472B6] text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
@@ -178,9 +179,9 @@ export default function ExplorePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setGenderFilter('남성')}
+                    onClick={() => setGenderFilter('male')}
                     className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
-                      genderFilter === '남성'
+                      genderFilter === 'male'
                         ? 'bg-[#F472B6] text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
@@ -189,9 +190,9 @@ export default function ExplorePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setGenderFilter('여성')}
+                    onClick={() => setGenderFilter('female')}
                     className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
-                      genderFilter === '여성'
+                      genderFilter === 'female'
                         ? 'bg-[#F472B6] text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
