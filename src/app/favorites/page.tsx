@@ -40,45 +40,49 @@ export default function FavoritesPage() {
     }
 
     setUser(user)
-    setLoading(false)
   }
 
   const loadFavorites = async () => {
-    if (!user) return
-
-    // favorites 테이블과 profiles 테이블 조인
-    const { data, error } = await supabase
-      .from('favorites')
-      .select(`
-        favorite_user_id,
-        profile:profiles!favorites_favorite_user_id_fkey (
-          id,
-          nickname,
-          gender,
-          birth_year,
-          organization,
-          innovation_city,
-          avatar_url
-        )
-      `)
-      .eq('user_id', user.id)
-
-    if (error) {
-      console.error('Error loading favorites:', error)
-      setFavoriteProfiles([])
+    const { data: { user } } = await supabase.auth.getUser()
+    console.log('Current user:', user?.id)
+    
+    if (!user) {
+      console.log('No user logged in')
+      setLoading(false)
       return
     }
 
-    if (data) {
-      // profile이 null이 아닌 것만 필터링하고 타입 변환
-      const profiles: Profile[] = []
-      for (const item of data) {
-        if (item.profile && typeof item.profile === 'object' && !Array.isArray(item.profile)) {
-          profiles.push(item.profile as Profile)
-        }
-      }
-      setFavoriteProfiles(profiles)
+    // 먼저 favorites 테이블만 조회
+    const { data: favData, error: favError } = await supabase
+      .from('favorites')
+      .select('*')
+      .eq('user_id', user.id)
+
+    console.log('Favorites data:', favData, 'Error:', favError)
+
+    if (!favData || favData.length === 0) {
+      console.log('No favorites found')
+      setFavoriteProfiles([])
+      setLoading(false)
+      return
     }
+
+    // favorite_user_id 목록 추출
+    const favoriteUserIds = favData.map(f => f.favorite_user_id)
+    console.log('Favorite user IDs:', favoriteUserIds)
+
+    // profiles 테이블에서 해당 사용자들 조회
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', favoriteUserIds)
+
+    console.log('Profiles data:', profilesData, 'Error:', profilesError)
+
+    if (profilesData) {
+      setFavoriteProfiles(profilesData)
+    }
+    setLoading(false)
   }
 
   const handleRemoveFavorite = async (profileId: string, e: React.MouseEvent) => {
