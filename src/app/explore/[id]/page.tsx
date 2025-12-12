@@ -259,7 +259,7 @@ export default function ProfileDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen flex items-center justify-center bg-[#FDF2F4]">
         <p className="text-pink-500">로딩 중...</p>
       </div>
     )
@@ -267,7 +267,7 @@ export default function ProfileDetailPage() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen flex items-center justify-center bg-[#FDF2F4]">
         <div className="text-center">
           <p className="text-red-500 mb-4">회원 정보를 찾을 수 없습니다.</p>
           <Link
@@ -282,7 +282,7 @@ export default function ProfileDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-[#FDF2F4] py-8">
       <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md">
         <div className="mb-6">
           <h1 className="text-4xl font-bold text-pink-500 mb-4">
