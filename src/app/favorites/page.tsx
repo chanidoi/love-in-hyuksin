@@ -71,9 +71,12 @@ export default function FavoritesPage() {
 
     if (data) {
       // profile이 null이 아닌 것만 필터링하고 타입 변환
-      const profiles = data
-        .filter(item => item.profile !== null)
-        .map(item => item.profile as Profile)
+      const profiles: Profile[] = []
+      for (const item of data) {
+        if (item.profile && typeof item.profile === 'object' && !Array.isArray(item.profile)) {
+          profiles.push(item.profile as Profile)
+        }
+      }
       setFavoriteProfiles(profiles)
     }
   }
