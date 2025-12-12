@@ -461,6 +461,26 @@ export default function ProfilePage() {
           <p className="text-xs text-gray-500 mt-3">최대 5개까지 선택 가능합니다 ({interests.length}/5)</p>
         </div>
 
+        {/* 찜 목록 바로가기 */}
+        <Link
+          href="/favorites"
+          className="block w-full bg-white rounded-2xl p-4 shadow-sm mb-4 hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#FDF2F4] rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              </div>
+              <span className="text-gray-900 font-semibold">찜한 프로필 보기</span>
+            </div>
+            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+
         {/* 매칭 정보 설정 링크 */}
         <Link
           href="/matching"
