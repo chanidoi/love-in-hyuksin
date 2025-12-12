@@ -126,28 +126,43 @@ export default function Home() {
   }
 
   const loadRecommendedProfiles = async () => {
-    if (!user || !profile) return
+    if (!user) return
 
-    // 현재 사용자와 반대 성별의 프로필 추천 (최대 10개)
-    const oppositeGender = profile.gender === 'male' ? 'female' : 'male'
-    
-    let query = supabase
+    // 현재 사용자 프로필 가져오기
+    const { data: myProfile } = await supabase
       .from('profiles')
-      .select('id, nickname, gender, birth_year, organization, innovation_city, avatar_url')
-      .eq('gender', oppositeGender)
-      .neq('id', user.id)
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    console.log('My profile for recommendations:', myProfile)
+
+    if (!myProfile) return
+
+    // 모든 프로필 가져오기
+    const { data: allProfiles } = await supabase
+      .from('profiles')
+      .select('*')
       .not('nickname', 'is', null)
 
-    // 같은 소속기관 제외
-    if (profile.organization) {
-      query = query.neq('organization', profile.organization)
-    }
+    console.log('All profiles:', allProfiles?.length)
 
-    const { data } = await query.limit(10)
+    // 필터링: 본인 제외 + 다른 기관 + 반대 성별
+    const oppositeGender = myProfile.gender === 'male' ? 'female' : 'male'
+    
+    const filtered = (allProfiles || []).filter(p => {
+      const isNotMe = p.id !== user.id
+      const isDifferentOrg = p.organization !== myProfile.organization
+      const isOppositeGender = p.gender === oppositeGender
+      
+      console.log(`${p.nickname}: notMe=${isNotMe}, diffOrg=${isDifferentOrg}, oppGender=${isOppositeGender}`)
+      
+      return isNotMe && isDifferentOrg && isOppositeGender
+    })
 
-    if (data) {
-      setRecommendedProfiles(data as Profile[])
-    }
+    console.log('Recommended profiles:', filtered.length)
+    
+    setRecommendedProfiles(filtered.slice(0, 5))
   }
 
   const calculateAge = (birthYear: string): number => {
