@@ -30,16 +30,32 @@ export default function ExplorePage() {
   const [showFilters, setShowFilters] = useState(false)
   const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all')
   const [cityFilter, setCityFilter] = useState('전체')
+  
+  // 프로필 로드 여부 추적
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     checkUser()
   }, [])
 
+  // 최초 로드
   useEffect(() => {
-    if (user && currentUserProfile) {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user && !isLoaded) {
+        await loadProfiles()
+        setIsLoaded(true)
+      }
+    }
+    init()
+  }, []) // 빈 의존성 배열 - 최초 1회만 실행
+
+  // 필터 변경 시에만 다시 로드
+  useEffect(() => {
+    if (isLoaded) {
       loadProfiles()
     }
-  }, [user, currentUserProfile, genderFilter, cityFilter])
+  }, [genderFilter, cityFilter]) // 필터가 변경될 때만 실행
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -77,8 +93,6 @@ export default function ExplorePage() {
       .single()
 
     if (!myProfile) return
-    
-    setCurrentUserProfile(myProfile)
 
     // 모든 프로필 가져오기 (닉네임 있는 것만)
     const { data: allProfiles, error } = await supabase
