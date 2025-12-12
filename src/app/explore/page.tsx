@@ -33,6 +33,10 @@ export default function ExplorePage() {
   
   // 프로필 로드 여부 추적
   const [isLoaded, setIsLoaded] = useState(false)
+  
+  // 뷰 모드 및 선택된 프로필
+  const [viewMode, setViewMode] = useState<'grid' | 'detail'>('grid')
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null)
 
   useEffect(() => {
     checkUser()
@@ -153,18 +157,36 @@ export default function ExplorePage() {
 
   const handleNext = () => {
     if (currentIndex < profiles.length - 1) {
-      setCurrentIndex(currentIndex + 1)
+      const nextIndex = currentIndex + 1
+      setCurrentIndex(nextIndex)
+      setSelectedProfile(profiles[nextIndex])
+    } else {
+      // 프로필이 없으면 그리드 뷰로 돌아가기
+      setViewMode('grid')
+      setSelectedProfile(null)
     }
   }
 
   const handleLike = () => {
-    if (profiles[currentIndex]) {
-      router.push(`/explore/${profiles[currentIndex].id}`)
+    if (selectedProfile) {
+      router.push(`/explore/${selectedProfile.id}`)
     }
   }
 
   const handlePass = () => {
     handleNext()
+  }
+
+  const handleProfileClick = (profile: Profile) => {
+    const index = profiles.findIndex(p => p.id === profile.id)
+    setCurrentIndex(index)
+    setSelectedProfile(profile)
+    setViewMode('detail')
+  }
+
+  const handleBackToGrid = () => {
+    setViewMode('grid')
+    setSelectedProfile(null)
   }
 
   if (loading) {
@@ -175,229 +197,309 @@ export default function ExplorePage() {
     )
   }
 
-  const currentProfile = profiles[currentIndex]
-
-  return (
-    <div className="min-h-screen bg-[#FDF2F4] pb-24">
-      {/* 상단 헤더 */}
-      <div className="sticky top-0 z-10 bg-[#FDF2F4] pt-4 pb-2 px-4">
-        <div className="max-w-md mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">회원 탐색</h1>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="p-2 rounded-full hover:bg-white/50 transition-colors"
-          >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-          </button>
+  // 그리드 뷰
+  if (viewMode === 'grid') {
+    return (
+      <div className="min-h-screen bg-[#FDF2F4] pb-24">
+        {/* 상단 헤더 */}
+        <div className="sticky top-0 z-10 bg-[#FDF2F4] pt-4 pb-2 px-4">
+          <div className="max-w-md mx-auto flex justify-between items-center">
+            <h1 className="text-xl font-bold text-gray-900">회원 탐색</h1>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="p-2 rounded-full hover:bg-white/50 transition-colors"
+            >
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* 필터 영역 */}
-      {showFilters && (
-        <div className="px-4 mb-4">
-          <div className="max-w-md mx-auto bg-white rounded-2xl p-4 shadow-sm">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">성별</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setGenderFilter('all')}
-                    className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
-                      genderFilter === 'all'
-                        ? 'bg-[#F472B6] text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
+        {/* 필터 영역 */}
+        {showFilters && (
+          <div className="px-4 mb-4">
+            <div className="max-w-md mx-auto bg-white rounded-2xl p-4 shadow-sm">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">성별</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setGenderFilter('all')}
+                      className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
+                        genderFilter === 'all'
+                          ? 'bg-[#F472B6] text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      전체
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGenderFilter('male')}
+                      className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
+                        genderFilter === 'male'
+                          ? 'bg-[#F472B6] text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      남성
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGenderFilter('female')}
+                      className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
+                        genderFilter === 'female'
+                          ? 'bg-[#F472B6] text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      여성
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">혁신도시</label>
+                  <select
+                    value={cityFilter}
+                    onChange={(e) => setCityFilter(e.target.value)}
+                    className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700"
                   >
-                    전체
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGenderFilter('male')}
-                    className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
-                      genderFilter === 'male'
-                        ? 'bg-[#F472B6] text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    남성
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGenderFilter('female')}
-                    className={`flex-1 py-2 rounded-xl font-medium transition-colors ${
-                      genderFilter === 'female'
-                        ? 'bg-[#F472B6] text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    여성
-                  </button>
+                    <option value="전체">전체</option>
+                    {getUniqueCities().map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">혁신도시</label>
-                <select
-                  value={cityFilter}
-                  onChange={(e) => setCityFilter(e.target.value)}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700"
-                >
-                  <option value="전체">전체</option>
-                  {getUniqueCities().map((city) => (
-                    <option key={city} value={city}>
-                      {city}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 프로필 카드 */}
-      <div className="max-w-md mx-auto px-4">
-        {!currentProfile ? (
-          <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
-            <p className="text-gray-500 text-lg">더 이상 프로필이 없습니다</p>
-            <Link
-              href="/"
-              className="mt-4 inline-block text-[#F472B6] font-semibold hover:underline"
-            >
-              홈으로 돌아가기
-            </Link>
-          </div>
-        ) : (
-          <>
-            {/* 프로필 이미지 */}
-            <div className="relative mb-4">
-              <div className="w-full aspect-[3/4] rounded-2xl overflow-hidden bg-gray-200 shadow-lg">
-                {currentProfile.avatar_url ? (
-                  <img
-                    src={currentProfile.avatar_url}
-                    alt={currentProfile.nickname}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOWNhM2FmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+RiDwvdGV4dD48L3N2Zz4='
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
-                    <span className="text-6xl text-gray-500">👤</span>
-                  </div>
-                )}
-              </div>
-              
-              {/* 그라데이션 오버레이 */}
-              <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/60 to-transparent rounded-b-2xl"></div>
-              
-              {/* 이름, 나이 */}
-              <div className="absolute bottom-4 left-4 right-4">
-                <h2 className="text-2xl font-bold text-white mb-1">
-                  {currentProfile.nickname || '닉네임 없음'}
-                </h2>
-                {currentProfile.birth_year && (
-                  <p className="text-white/90">
-                    {calculateAge(currentProfile.birth_year)}세
-                  </p>
-                )}
-              </div>
-
-              {/* 액션 버튼들 */}
-              <div className="absolute bottom-4 right-4 flex gap-2">
-                <button
-                  onClick={handlePass}
-                  className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
-                >
-                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-                <button
-                  onClick={handleLike}
-                  className="w-12 h-12 bg-[#F472B6] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
-                >
-                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                  </svg>
-                </button>
-                <button
-                  className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
-                >
-                  <svg className="w-6 h-6 text-purple-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                  </svg>
-                </button>
-              </div>
+        {/* 그리드 뷰 */}
+        <div className="max-w-md mx-auto px-4">
+          {profiles.length === 0 ? (
+            <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
+              <p className="text-gray-500 text-lg">더 이상 프로필이 없습니다</p>
+              <Link
+                href="/"
+                className="mt-4 inline-block text-[#F472B6] font-semibold hover:underline"
+              >
+                홈으로 돌아가기
+              </Link>
             </div>
-
-            {/* 프로필 정보 카드 */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-              <div className="space-y-4">
-                {/* 기본 정보 */}
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-bold text-gray-900">
-                      {currentProfile.nickname || '닉네임 없음'}
-                    </h3>
-                    {currentProfile.birth_year && (
-                      <span className="text-gray-500">
-                        {calculateAge(currentProfile.birth_year)}세
-                      </span>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {profiles.map((profile) => (
+                <div
+                  key={profile.id}
+                  onClick={() => handleProfileClick(profile)}
+                  className="cursor-pointer"
+                >
+                  <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                    {profile.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt={profile.nickname}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOWNhM2FmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+RiDwvdGV4dD48L3N2Zz4='
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
+                        <span className="text-4xl text-gray-500">👤</span>
+                      </div>
                     )}
+                    
+                    {/* 그라데이션 오버레이 */}
+                    <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/70 to-transparent"></div>
+                    
+                    {/* 이름, 나이 */}
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <h3 className="text-sm font-bold text-white truncate">
+                        {profile.nickname || '닉네임 없음'}
+                      </h3>
+                      {profile.birth_year && (
+                        <p className="text-xs text-white/90">
+                          {calculateAge(profile.birth_year)}세
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {currentProfile.organization && (
-                    <p className="text-gray-600 mb-1">{currentProfile.organization}</p>
-                  )}
-                  {currentProfile.innovation_city && (
-                    <p className="text-gray-500 text-sm">
-                      📍 {currentProfile.innovation_city}
+                  
+                  {/* 기관명 */}
+                  {profile.organization && (
+                    <p className="text-xs text-gray-600 mt-1 truncate px-1">
+                      {profile.organization}
                     </p>
                   )}
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
-                {/* About Me */}
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">About Me</h4>
-                  <p className="text-gray-600 text-sm">
-                    {currentProfile.bio || '안녕하세요! 좋은 만남을 기대합니다.'}
-                  </p>
+  // 상세 뷰
+  if (viewMode === 'detail' && selectedProfile) {
+    return (
+      <div className="min-h-screen bg-[#FDF2F4] flex flex-col pb-24">
+        {/* 뒤로가기 버튼 */}
+        <div className="sticky top-0 z-10 bg-[#FDF2F4] pt-4 pb-2 px-4">
+          <div className="max-w-md mx-auto">
+            <button
+              onClick={handleBackToGrid}
+              className="p-2 rounded-full hover:bg-white/50 transition-colors"
+            >
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="max-w-md mx-auto px-4 flex-1 flex flex-col overflow-hidden">
+          {/* 프로필 이미지 */}
+          <div className="relative mb-3 flex-shrink-0">
+            <div className="w-full h-[40vh] rounded-2xl overflow-hidden bg-gray-200 shadow-lg">
+              {selectedProfile.avatar_url ? (
+                <img
+                  src={selectedProfile.avatar_url}
+                  alt={selectedProfile.nickname}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOWNhM2FmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+8J+RiDwvdGV4dD48L3N2Zz4='
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
+                  <span className="text-6xl text-gray-500">👤</span>
                 </div>
+              )}
+            </div>
+            
+            {/* 그라데이션 오버레이 */}
+            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/60 to-transparent rounded-b-2xl"></div>
+            
+            {/* 이름, 나이 */}
+            <div className="absolute bottom-3 left-4 right-4">
+              <h2 className="text-2xl font-bold text-white mb-1">
+                {selectedProfile.nickname || '닉네임 없음'}
+              </h2>
+              {selectedProfile.birth_year && (
+                <p className="text-white/90">
+                  {calculateAge(selectedProfile.birth_year)}세
+                </p>
+              )}
+            </div>
+          </div>
 
-                {/* Interests */}
-                {currentProfile.interests && currentProfile.interests.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Interests</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {currentProfile.interests.map((interest, index) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-[#FDF2F4] text-[#F472B6] rounded-full text-xs font-medium"
-                        >
-                          {interest}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+          {/* 프로필 정보 카드 */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm mb-3 flex-shrink-0">
+            <div className="space-y-3">
+              {/* 기본 정보 */}
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {selectedProfile.nickname || '닉네임 없음'}
+                  </h3>
+                  {selectedProfile.birth_year && (
+                    <span className="text-gray-500">
+                      {calculateAge(selectedProfile.birth_year)}세
+                    </span>
+                  )}
+                </div>
+                {selectedProfile.organization && (
+                  <p className="text-gray-600 text-sm mb-1">{selectedProfile.organization}</p>
+                )}
+                {selectedProfile.innovation_city && (
+                  <p className="text-gray-500 text-xs">
+                    📍 {selectedProfile.innovation_city}
+                  </p>
                 )}
               </div>
-            </div>
 
-            {/* 다음 프로필 버튼 */}
-            {currentIndex < profiles.length - 1 && (
+              {/* About Me (2줄 제한) */}
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-1">About Me</h4>
+                <p className="text-gray-600 text-xs line-clamp-2">
+                  {selectedProfile.bio || '안녕하세요! 좋은 만남을 기대합니다.'}
+                </p>
+              </div>
+
+              {/* Interests */}
+              {selectedProfile.interests && selectedProfile.interests.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-700 mb-1">Interests</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedProfile.interests.slice(0, 5).map((interest, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-0.5 bg-[#FDF2F4] text-[#F472B6] rounded-full text-xs font-medium"
+                      >
+                        {interest}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 하단 고정 액션 버튼들 */}
+          <div className="mt-auto pb-4">
+            <div className="flex justify-center gap-3 mb-3">
+              <button
+                onClick={handlePass}
+                className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+              >
+                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <button
+                onClick={handleLike}
+                className="w-12 h-12 bg-[#F472B6] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+              >
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+              </button>
+              <button className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                <svg className="w-6 h-6 text-purple-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              </button>
+            </div>
+            
+            {/* 다음 프로필 보기 버튼 */}
+            {currentIndex < profiles.length - 1 ? (
               <button
                 onClick={handleNext}
                 className="w-full bg-white text-[#F472B6] rounded-full py-3 font-semibold shadow-sm hover:bg-gray-50 transition-colors"
               >
                 다음 프로필 보기
               </button>
+            ) : (
+              <button
+                onClick={handleBackToGrid}
+                className="w-full bg-white text-[#F472B6] rounded-full py-3 font-semibold shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                그리드로 돌아가기
+              </button>
             )}
-          </>
-        )}
+          </div>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  return null
 }
