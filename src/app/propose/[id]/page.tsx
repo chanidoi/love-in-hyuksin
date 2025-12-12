@@ -120,15 +120,26 @@ export default function ProposePage() {
   }
 
   const loadRestaurants = async () => {
+    console.log('Loading restaurants...')
+    
+    // 먼저 모든 컬럼을 가져와서 존재하는 컬럼 확인
     const { data, error } = await supabase
       .from('restaurants')
-      .select('id, name, category, location, innovation_city, is_outside, address, lat, lng')
+      .select('*')
       .order('name', { ascending: true })
+
+    console.log('Restaurants data:', data, 'Error:', error)
+    console.log('Number of restaurants:', data?.length || 0)
 
     if (error) {
       console.error('Error loading restaurants:', error)
-    } else {
+      setRestaurants([])
+    } else if (data) {
+      console.log('Successfully loaded restaurants:', data.length)
       setRestaurants((data || []) as Restaurant[])
+    } else {
+      console.log('No restaurants data returned')
+      setRestaurants([])
     }
   }
 
