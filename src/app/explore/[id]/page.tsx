@@ -46,9 +46,12 @@ export default function ProfileDetailPage() {
 
   useEffect(() => {
     if (user && params.id) {
-      loadProfile(params.id as string)
+      loadProfile()
       checkPendingRequest(params.id as string)
       loadReviews(params.id as string)
+    } else if (user && !params.id) {
+      // params.id가 없으면 로딩 종료
+      setLoading(false)
     }
   }, [user, params.id])
 
@@ -63,21 +66,31 @@ export default function ProfileDetailPage() {
     setUser(user)
   }
 
-  const loadProfile = async (profileId: string) => {
+  const loadProfile = async () => {
+    if (!params.id) {
+      console.log('No profile ID provided')
+      setLoading(false)
+      return
+    }
+
+    console.log('Loading profile for ID:', params.id)
     setLoading(true)
+    
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, nickname, gender, birth_year, organization, innovation_city, job_level, job_field, avatar_url, bio, interests')
-      .eq('id', profileId)
+      .select('*')
+      .eq('id', params.id)
       .single()
 
-    if (error) {
-      console.error('Error loading profile:', error)
-      setLoading(false)
+    console.log('Profile data:', data, 'Error:', error)
+
+    if (error || !data) {
+      console.error('Failed to load profile:', error)
+      setProfile(null)
     } else {
       setProfile(data)
-      setLoading(false)
     }
+    setLoading(false)
   }
 
   const checkPendingRequest = async (receiverId: string) => {
