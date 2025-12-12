@@ -235,44 +235,103 @@ export default function ProfileDetailPage() {
       {/* 프로필 정보 카드 - 간결하게 */}
       <div className="flex-1 px-5 py-4 overflow-auto">
         <div className="bg-white rounded-2xl p-4 shadow-sm">
+          {/* 닉네임, 나이 */}
           <div className="flex items-center gap-2 mb-3">
             <span className="text-lg font-bold text-[#F472B6]">
               {profile.nickname || '닉네임 없음'}
             </span>
-            {profile.birth_year && (
-              <span className="text-gray-500">
-                {calculateAge(profile.birth_year)}세
-              </span>
-            )}
+            <span className="text-gray-500 text-sm">
+              {getGenderDisplay(profile.gender)}
+              {profile.birth_year && ` • ${calculateAge(profile.birth_year)}세`}
+            </span>
           </div>
-          {profile.organization && (
-            <p className="text-gray-600 text-sm mb-1">{profile.organization}</p>
-          )}
-          {profile.innovation_city && (
-            <p className="text-gray-400 text-sm mb-3">📍 {profile.innovation_city}</p>
-          )}
-
-          {/* About Me - 2줄 제한 */}
-          <div className="mt-3">
-            <p className="text-sm font-medium text-gray-700 mb-1">About Me</p>
-            <p className="text-sm text-gray-500 line-clamp-2">
+          
+          {/* 기본 정보 - 2열 그리드 */}
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-gray-400 text-xs mb-1">소속기관</p>
+              <p className="font-medium text-gray-700">{profile.organization || '-'}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-xs mb-1">혁신도시</p>
+              <p className="font-medium text-gray-700">{profile.innovation_city || '-'}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-xs mb-1">직급</p>
+              <p className="font-medium text-gray-700">{profile.job_level || '-'}</p>
+            </div>
+            <div>
+              <p className="text-gray-400 text-xs mb-1">업무분야</p>
+              <p className="font-medium text-gray-700">{profile.job_field || '-'}</p>
+            </div>
+          </div>
+          
+          {/* About Me */}
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <p className="text-xs text-gray-400 mb-1">About Me</p>
+            <p className="text-sm text-gray-600">
               {profile.bio || '안녕하세요! 좋은 만남을 기대합니다.'}
             </p>
           </div>
-
+          
           {/* 관심사 */}
           {profile.interests && profile.interests.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {profile.interests.slice(0, 5).map((interest, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-pink-50 text-[#F472B6] text-xs rounded-full"
-                >
-                  {interest}
-                </span>
-              ))}
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <p className="text-xs text-gray-400 mb-2">관심사</p>
+              <div className="flex flex-wrap gap-1.5">
+                {profile.interests.map((interest: string, idx: number) => (
+                  <span
+                    key={idx}
+                    className="px-2.5 py-1 bg-pink-50 text-[#F472B6] text-xs rounded-full"
+                  >
+                    {interest}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
+          
+          {/* 받은 후기 */}
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <p className="text-xs text-[#F472B6] font-medium mb-2">받은 후기</p>
+            {reviews.length === 0 ? (
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-sm text-gray-400 text-center">아직 받은 후기가 없습니다</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {reviews.map((review) => (
+                  <div
+                    key={review.id}
+                    className="bg-pink-50 border border-pink-200 rounded-lg p-3"
+                  >
+                    <div className="space-y-1.5 text-xs">
+                      <div>
+                        <span className="font-semibold text-pink-600">첫인상:</span>{' '}
+                        <span className="text-gray-700">{review.first_impression}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-pink-600">대화:</span>{' '}
+                        <span className="text-gray-700">{review.conversation}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-pink-600">매너:</span>{' '}
+                        <span className="text-gray-700">{review.manner}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-pink-600">시간/약속:</span>{' '}
+                        <span className="text-gray-700">{review.punctuality}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-pink-600">전체 느낌:</span>{' '}
+                        <span className="text-gray-700">{review.overall}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
