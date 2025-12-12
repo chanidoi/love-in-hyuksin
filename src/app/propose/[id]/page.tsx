@@ -22,6 +22,9 @@ interface Restaurant {
   location: string
   innovation_city: string
   is_outside: boolean
+  address: string | null
+  lat: number | null
+  lng: number | null
 }
 
 interface Menu {
@@ -31,6 +34,7 @@ interface Menu {
   price: number
   description: string | null
   is_available: boolean
+  image_url: string | null
 }
 
 export default function ProposePage() {
@@ -118,7 +122,7 @@ export default function ProposePage() {
   const loadRestaurants = async () => {
     const { data, error } = await supabase
       .from('restaurants')
-      .select('id, name, category, location, innovation_city, is_outside')
+      .select('id, name, category, location, innovation_city, is_outside, address, lat, lng')
       .order('name', { ascending: true })
 
     if (error) {
@@ -131,7 +135,7 @@ export default function ProposePage() {
   const loadMenus = async (restaurantId: string) => {
     const { data, error } = await supabase
       .from('menus')
-      .select('id, restaurant_id, name, price, description, is_available')
+      .select('id, restaurant_id, name, price, description, is_available, image_url')
       .eq('restaurant_id', restaurantId)
       .eq('is_available', true)
       .order('name', { ascending: true })
@@ -196,8 +200,6 @@ export default function ProposePage() {
       }, 2000)
     }
   }
-
-  const selectedMenu = menus.find(menu => menu.id === selectedMenuId)
 
   if (loading) {
     return (
@@ -293,93 +295,148 @@ export default function ProposePage() {
         
         {/* 제안 폼 (흰색 카드) */}
         <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              점심 날짜 선택
-            </label>
-            <input
-              type="date"
-              value={proposedDate}
-              min={getTomorrowDate()}
-              onChange={(e) => setProposedDate(e.target.value)}
-              className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700"
-            />
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              식당 선택
-            </label>
-            {restaurants.length === 0 ? (
-              <div className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-500 text-center">
-                등록된 식당이 없습니다
-              </div>
-            ) : (
-              <select
-                value={selectedRestaurantId}
-                onChange={(e) => setSelectedRestaurantId(e.target.value)}
-                className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700"
-              >
-                <option value="">식당을 선택하세요</option>
-                {restaurants.map((restaurant) => (
-                  <option key={restaurant.id} value={restaurant.id}>
-                    {restaurant.name} ({restaurant.category})
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          {selectedRestaurantId && (
-            <div className="mb-4">
+          <div className="space-y-4">
+            {/* 날짜 선택 */}
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                메뉴 선택
+                점심 날짜 선택
               </label>
-              <p className="text-xs text-gray-500 mb-2">내가 먹을 메뉴를 선택하세요</p>
-              {menus.length === 0 ? (
+              <input
+                type="date"
+                value={proposedDate}
+                min={getTomorrowDate()}
+                onChange={(e) => setProposedDate(e.target.value)}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700"
+              />
+            </div>
+
+            {/* 식당 선택 - 드롭다운 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                식당 선택
+              </label>
+              {restaurants.length === 0 ? (
                 <div className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-500 text-center">
-                  등록된 메뉴가 없습니다
+                  등록된 식당이 없습니다
                 </div>
               ) : (
                 <select
-                  value={selectedMenuId}
-                  onChange={(e) => setSelectedMenuId(e.target.value)}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700"
+                  value={selectedRestaurantId}
+                  onChange={(e) => setSelectedRestaurantId(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F472B6] focus:border-[#F472B6] text-gray-700 max-h-[200px] overflow-y-auto"
                 >
-                  <option value="">메뉴를 선택하세요</option>
-                  {menus.map((menu) => (
-                    <option key={menu.id} value={menu.id}>
-                      {menu.name} - ₩{menu.price.toLocaleString()}
+                  <option value="">식당을 선택하세요</option>
+                  {restaurants.map((restaurant) => (
+                    <option key={restaurant.id} value={restaurant.id}>
+                      {restaurant.name} ({restaurant.category})
                     </option>
                   ))}
                 </select>
               )}
             </div>
-          )}
 
-          {selectedMenu && (
-            <div className="mb-4 p-3 bg-[#FDF2F4] border border-pink-200 rounded-xl">
-              <p className="text-sm font-medium text-[#F472B6]">
-                선택한 메뉴: {selectedMenu.name} (₩{selectedMenu.price.toLocaleString()})
+            {/* 선택된 식당 정보 */}
+            {selectedRestaurantId && (() => {
+              const selectedRestaurant = restaurants.find(r => r.id === selectedRestaurantId)
+              if (!selectedRestaurant) return null
+              
+              const address = selectedRestaurant.address || selectedRestaurant.location || ''
+              const mapQuery = `${selectedRestaurant.name} ${address}`.trim()
+              
+              return (
+                <div className="bg-pink-50 rounded-xl p-3">
+                  <p className="font-medium text-gray-900 mb-1">{selectedRestaurant.name}</p>
+                  {address && (
+                    <p className="text-sm text-gray-500 mb-2">{address}</p>
+                  )}
+                  {mapQuery && (
+                    <a
+                      href={`https://map.naver.com/v5/search/${encodeURIComponent(mapQuery)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#F472B6] text-sm mt-2 inline-block hover:underline"
+                    >
+                      📍 네이버 지도에서 보기
+                    </a>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* 메뉴 선택 - 카드형 */}
+            {selectedRestaurantId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  메뉴 선택
+                </label>
+                {menus.length === 0 ? (
+                  <div className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-500 text-center">
+                    등록된 메뉴가 없습니다
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {menus.map((menu) => (
+                      <div
+                        key={menu.id}
+                        onClick={() => setSelectedMenuId(menu.id)}
+                        className={`p-3 rounded-xl border-2 cursor-pointer transition-colors ${
+                          selectedMenuId === menu.id
+                            ? 'border-[#F472B6] bg-pink-50'
+                            : 'border-gray-200 bg-white hover:border-pink-200'
+                        }`}
+                      >
+                        <div className="w-full h-16 bg-gray-100 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
+                          {menu.image_url ? (
+                            <img
+                              src={menu.image_url}
+                              alt={menu.name}
+                              className="w-full h-full object-cover rounded-lg"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.style.display = 'none'
+                                const parent = target.parentElement
+                                if (parent) {
+                                  const fallback = document.createElement('span')
+                                  fallback.className = 'text-2xl'
+                                  fallback.textContent = '🍽️'
+                                  parent.appendChild(fallback)
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span className="text-2xl">🍽️</span>
+                          )}
+                        </div>
+                        <p className="font-medium text-sm text-gray-900 mb-1 truncate">
+                          {menu.name}
+                        </p>
+                        <p className="text-[#F472B6] text-sm font-semibold">
+                          ₩{menu.price.toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {message && (
+              <p className={`text-center text-sm ${
+                message.includes('오류') ? 'text-red-500' : 'text-green-500'
+              }`}>
+                {message}
               </p>
-            </div>
-          )}
+            )}
 
-          {message && (
-            <p className={`mb-4 text-center ${
-              message.includes('오류') ? 'text-red-500' : 'text-green-500'
-            }`}>
-              {message}
-            </p>
-          )}
-
-          <button
-            onClick={handleSubmitProposal}
-            disabled={submitting || !proposedDate || !selectedRestaurantId || !selectedMenuId}
-            className="w-full bg-[#F472B6] text-white p-3 rounded-xl hover:bg-[#F472B6]/90 disabled:bg-gray-400 font-medium transition-colors"
-          >
-            {submitting ? '제안 중...' : '제안하기'}
-          </button>
+            {/* 제안하기 버튼 */}
+            <button
+              onClick={handleSubmitProposal}
+              disabled={submitting || !proposedDate || !selectedRestaurantId || !selectedMenuId}
+              className="w-full bg-[#F472B6] text-white p-3 rounded-xl hover:bg-[#F472B6]/90 disabled:bg-gray-400 font-medium transition-colors"
+            >
+              {submitting ? '제안 중...' : '제안하기'}
+            </button>
+          </div>
         </div>
       </div>
       
