@@ -16,6 +16,8 @@ interface Profile {
   job_level: string
   job_field: string
   avatar_url: string | null
+  bio: string | null
+  interests: string[] | null
 }
 
 interface Review {
@@ -65,7 +67,7 @@ export default function ProfileDetailPage() {
     setLoading(true)
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, nickname, gender, birth_year, organization, innovation_city, job_level, job_field, avatar_url')
+      .select('id, nickname, gender, birth_year, organization, innovation_city, job_level, job_field, avatar_url, bio, interests')
       .eq('id', profileId)
       .single()
 
@@ -155,21 +157,10 @@ export default function ProfileDetailPage() {
     )
   }
 
-  const getAvatarUrl = () => {
-    if (profile.avatar_url) {
-      return profile.avatar_url
-    }
-    // 기본 아바타: 그라데이션 배경에 닉네임 첫 글자
-    const firstLetter = profile.nickname?.[0]?.toUpperCase() || '?'
-    return null
-  }
-
-  const avatarUrl = getAvatarUrl()
-
   return (
-    <div className="min-h-screen bg-[#FDF2F4] pb-24">
+    <div className="min-h-screen bg-[#FDF2F4] flex flex-col">
       {/* 상단 뒤로가기 */}
-      <div className="p-4">
+      <div className="p-4 flex-shrink-0">
         <button 
           onClick={() => router.back()} 
           className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
@@ -187,12 +178,12 @@ export default function ProfileDetailPage() {
         </button>
       </div>
 
-      {/* 프로필 이미지 */}
-      <div className="px-5 mb-4">
-        <div className="aspect-[3/4] max-h-[300px] rounded-2xl overflow-hidden shadow-lg bg-white">
-          {avatarUrl ? (
+      {/* 프로필 이미지 - 가운데 정렬, 오버레이 */}
+      <div className="px-5 flex-shrink-0">
+        <div className="relative h-[35vh] max-h-[280px] rounded-2xl overflow-hidden shadow-lg mx-auto max-w-[280px]">
+          {profile.avatar_url ? (
             <img
-              src={avatarUrl}
+              src={profile.avatar_url}
               alt={profile.nickname || '프로필'}
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -212,98 +203,72 @@ export default function ProfileDetailPage() {
               {profile.nickname?.[0]?.toUpperCase() || '?'}
             </div>
           )}
+          {/* 그라데이션 오버레이 */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          {/* 닉네임, 나이 오버레이 */}
+          <div className="absolute bottom-4 left-4">
+            <h1 className="text-white text-xl font-bold">
+              {profile.nickname || '닉네임 없음'}
+            </h1>
+            {profile.birth_year && (
+              <p className="text-white/80">
+                {calculateAge(profile.birth_year)}세
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* 프로필 정보 카드 */}
-      <div className="mx-5 bg-white rounded-2xl p-5 shadow-sm">
-        <h1 className="text-2xl font-bold text-[#F472B6] mb-2">
-          {profile.nickname || '닉네임 없음'}
-        </h1>
-        <p className="text-gray-600 mb-4">
-          {getGenderDisplay(profile.gender)}
-          {profile.birth_year && ` • ${calculateAge(profile.birth_year)}세`}
-        </p>
-
-        <div className="mt-4 space-y-3">
+      {/* 프로필 정보 카드 - 간결하게 */}
+      <div className="flex-1 px-5 py-4 overflow-auto">
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg font-bold text-[#F472B6]">
+              {profile.nickname || '닉네임 없음'}
+            </span>
+            {profile.birth_year && (
+              <span className="text-gray-500">
+                {calculateAge(profile.birth_year)}세
+              </span>
+            )}
+          </div>
           {profile.organization && (
-            <div>
-              <p className="text-sm text-gray-400">소속기관</p>
-              <p className="font-medium text-gray-800">{profile.organization}</p>
-            </div>
+            <p className="text-gray-600 text-sm mb-1">{profile.organization}</p>
           )}
-
           {profile.innovation_city && (
-            <div>
-              <p className="text-sm text-gray-400">혁신도시</p>
-              <p className="font-medium text-gray-800">{profile.innovation_city}</p>
-            </div>
+            <p className="text-gray-400 text-sm mb-3">📍 {profile.innovation_city}</p>
           )}
 
-          {profile.job_level && (
-            <div>
-              <p className="text-sm text-gray-400">직급</p>
-              <p className="font-medium text-gray-800">{profile.job_level}</p>
-            </div>
-          )}
+          {/* About Me - 2줄 제한 */}
+          <div className="mt-3">
+            <p className="text-sm font-medium text-gray-700 mb-1">About Me</p>
+            <p className="text-sm text-gray-500 line-clamp-2">
+              {profile.bio || '안녕하세요! 좋은 만남을 기대합니다.'}
+            </p>
+          </div>
 
-          {profile.job_field && (
-            <div>
-              <p className="text-sm text-gray-400">업무분야</p>
-              <p className="font-medium text-gray-800">{profile.job_field}</p>
-            </div>
-          )}
-        </div>
-
-        {/* 받은 후기 */}
-        <div className="mt-6">
-          <h2 className="text-lg font-bold text-[#F472B6] mb-3">받은 후기</h2>
-          {reviews.length === 0 ? (
-            <div className="bg-gray-50 p-4 rounded-lg text-center text-gray-500 text-sm">
-              아직 받은 후기가 없습니다
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {reviews.map((review) => (
-                <div
-                  key={review.id}
-                  className="bg-pink-50 border border-pink-200 rounded-lg p-4"
+          {/* 관심사 */}
+          {profile.interests && profile.interests.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {profile.interests.slice(0, 5).map((interest, index) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 bg-pink-50 text-[#F472B6] text-xs rounded-full"
                 >
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="font-semibold text-pink-600">첫인상:</span>{' '}
-                      <span className="text-gray-700">{review.first_impression}</span>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-pink-600">대화:</span>{' '}
-                      <span className="text-gray-700">{review.conversation}</span>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-pink-600">매너:</span>{' '}
-                      <span className="text-gray-700">{review.manner}</span>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-pink-600">시간/약속:</span>{' '}
-                      <span className="text-gray-700">{review.punctuality}</span>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-pink-600">전체 느낌:</span>{' '}
-                      <span className="text-gray-700">{review.overall}</span>
-                    </div>
-                  </div>
-                </div>
+                  {interest}
+                </span>
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* 하단 버튼 영역 */}
-      <div className="mx-5 mt-4">
+      {/* 하단 버튼 - 고정 */}
+      <div className="flex-shrink-0 px-5 pb-24 pt-2">
         <button
           onClick={handleLunchProposal}
           disabled={hasPendingRequest}
-          className={`w-full py-4 rounded-full font-semibold ${
+          className={`w-full py-3 rounded-full font-semibold ${
             hasPendingRequest
               ? 'bg-gray-400 text-white cursor-not-allowed'
               : 'bg-[#F472B6] text-white'
@@ -312,7 +277,7 @@ export default function ProfileDetailPage() {
           {hasPendingRequest ? '이미 제안을 보낸 상대입니다' : '점심 제안하기'}
         </button>
         {message && (
-          <p className={`text-center mt-2 text-sm ${
+          <p className={`text-center mt-1 text-xs ${
             message.includes('오류') || message.includes('이미')
               ? 'text-red-500'
               : 'text-green-500'
@@ -322,7 +287,7 @@ export default function ProfileDetailPage() {
         )}
         <button
           onClick={() => router.push('/explore')}
-          className="w-full py-3 text-[#F472B6] text-center mt-2"
+          className="w-full py-2 text-[#F472B6] text-center text-sm mt-1"
         >
           목록으로 돌아가기
         </button>
