@@ -66,46 +66,62 @@ export default function ExplorePage() {
   }
 
   const loadProfiles = async () => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
-    if (!currentUser || !currentUserProfile) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-    let query = supabase
+    // 현재 사용자 프로필 가져오기
+    const { data: myProfile } = await supabase
       .from('profiles')
-      .select('id, nickname, gender, birth_year, organization, innovation_city, job_level, job_field, avatar_url, interests, bio')
-      .neq('id', currentUser.id)
-      .not('nickname', 'is', null)
+      .select('*')
+      .eq('id', user.id)
+      .single()
 
-    // 같은 소속기관 제외
-    if (currentUserProfile.organization) {
-      query = query.neq('organization', currentUserProfile.organization)
-    }
-
-    // 성별 필터가 선택된 경우에만 적용
-    if (genderFilter && genderFilter !== 'all') {
-      query = query.eq('gender', genderFilter)
-    }
-
-    // 혁신도시 필터
-    if (cityFilter !== '전체') {
-      query = query.eq('innovation_city', cityFilter)
-    }
-
-    const { data, error } = await query
+    if (!myProfile) return
     
-    console.log('Loaded profiles:', data, 'Error:', error)
-    console.log('Gender filter:', genderFilter, 'City filter:', cityFilter)
-    console.log('Current user organization:', currentUserProfile.organization)
-    console.log('Profiles count:', data?.length || 0)
+    setCurrentUserProfile(myProfile)
+
+    // 모든 프로필 가져오기 (닉네임 있는 것만)
+    const { data: allProfiles, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .not('nickname', 'is', null)
 
     if (error) {
       console.error('Error loading profiles:', error)
       setProfiles([])
-    } else {
-      // 랜덤하게 섞기
-      const shuffled = (data || []).sort(() => Math.random() - 0.5)
-      setProfiles(shuffled as Profile[])
-      setCurrentIndex(0)
+      return
     }
+
+    console.log('All profiles:', allProfiles?.length)
+    console.log('My org:', myProfile.organization)
+
+    // 클라이언트에서 필터링
+    let filtered = (allProfiles || []).filter(p => {
+      // 본인 제외
+      if (p.id === user.id) return false
+      // 같은 기관 제외
+      if (p.organization === myProfile.organization) return false
+      return true
+    })
+
+    console.log('After org filter:', filtered.length)
+
+    // 성별 필터
+    if (genderFilter && genderFilter !== 'all') {
+      filtered = filtered.filter(p => p.gender === genderFilter)
+    }
+
+    // 혁신도시 필터
+    if (cityFilter && cityFilter !== '전체') {
+      filtered = filtered.filter(p => p.innovation_city === cityFilter)
+    }
+
+    console.log('Final filtered:', filtered.length)
+
+    // 랜덤 섞기
+    const shuffled = filtered.sort(() => Math.random() - 0.5)
+    setProfiles(shuffled as Profile[])
+    setCurrentIndex(0)
   }
 
   const calculateAge = (birthYear: string): number => {
